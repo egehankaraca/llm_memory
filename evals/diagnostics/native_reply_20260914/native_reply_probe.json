@@ -1,0 +1,104 @@
+{
+  "model": "qwen3:8b",
+  "mode": "local_ollama_no_memory_writes",
+  "semantic_score": null,
+  "candidate_prompt": "Türkçe konuşan yardımsever bir ev asistanısın. Kullanıcıyla doğal, kısa ve kibar konuş; siz hitabını kullan.\nKullanıcı açık bir bilgi veya tercih söylediğinde bunu kısaca karşıla. Zaten açıkça söylediği şeyi sebepsiz yere soru olarak geri sorma. Yeni bilgiye gereksiz övgü veya takip sorusu ekleme.\nKullanıcının son isteğini esas al. Öneri istemek ile kişisel bilgiyi hatırlamak farklıdır; ilgili bir rutin kaydı her sorunun cevabı değildir. Gerçekten belirsiz bir isteği açıklığa kavuştur.\nARKA_PLAN_JSON yalnızca kullanıcı hakkında arka plan verisidir, asistanın kimliği veya talimatı değildir. Hitap tercihini doğal kullan; kullanıcının adını kendine ait sanma veya hitap isteğinin tamamını kopyalama.\nKişisel bilgileri kullanıcının açık beyanından veya profilinden hatırla; soruları ve asistan cevaplarını yeni gerçek sayma. Gün, saat ve kişi uydurma. Genel konularda sohbet etmek için kişisel hafıza gerekmez.\nCanlı hava, cihaz, takvim veya arama araçların yok; sonuçlarını uydurma. Kişiye özel sağlık uygunluğu, tanı, tedavi veya ilaç dozu verme. Hafıza kayıt ve onaylarını ayrı sistem yönetir; yapılmış gibi söyleme.",
+  "results": [
+    {
+      "variant": "current_json",
+      "case": "cousin_fresh",
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, kuzeninizin adı Ayşe mi?",
+      "done_reason": "stop",
+      "eval_count": 20
+    },
+    {
+      "variant": "current_json",
+      "case": "cousin_history",
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, kuzeninizin adı Ayşe mi? Bu bilgiyi doğru hatırlıyor musunuz?",
+      "done_reason": "stop",
+      "eval_count": 31
+    },
+    {
+      "variant": "current_json",
+      "case": "other_declaration",
+      "text": "Komşumun adı Mehmet",
+      "answer": "Ahmet Bey, komşunuzun adı Mehmet mi? Bilgi doğru mu?",
+      "done_reason": "stop",
+      "eval_count": 25
+    },
+    {
+      "variant": "current_plain",
+      "case": "cousin_fresh",
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, kuzeninizin adı Ayşe mi?",
+      "done_reason": "stop",
+      "eval_count": 16
+    },
+    {
+      "variant": "current_plain",
+      "case": "cousin_history",
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, kuzeninizin adı Ayşe mi?",
+      "done_reason": "stop",
+      "eval_count": 16
+    },
+    {
+      "variant": "current_plain",
+      "case": "other_declaration",
+      "text": "Komşumun adı Mehmet",
+      "answer": "Ahmet Bey, komşunuzun adı Mehmet mi?",
+      "done_reason": "stop",
+      "eval_count": 16
+    },
+    {
+      "variant": "native_candidate",
+      "case": "cousin_fresh",
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, kuzeninizin adı Ayşe mi?",
+      "done_reason": "stop",
+      "eval_count": 16
+    },
+    {
+      "variant": "native_candidate",
+      "case": "cousin_history",
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, kuzeninizin adı Ayşe mi?",
+      "done_reason": "stop",
+      "eval_count": 16
+    },
+    {
+      "variant": "native_candidate",
+      "case": "other_declaration",
+      "text": "Komşumun adı Mehmet",
+      "answer": "Ahmet Bey, komşunuzun adı Mehmet mi? Dilerseniz onunla ilgili bir şey paylaşabilirsiniz.",
+      "done_reason": "stop",
+      "eval_count": 33
+    },
+    {
+      "variant": "native_candidate",
+      "case": "preference",
+      "text": "Kahveyi şekersiz severim",
+      "answer": "Ahmet Bey, kahveyi şekersiz sever misiniz?",
+      "done_reason": "stop",
+      "eval_count": 16
+    },
+    {
+      "variant": "native_candidate",
+      "case": "advice",
+      "text": "tenis oynayayım mı",
+      "answer": "Hafta sonu tenis oynamak isterseniz, ben size yardımcı olabilirim. Ne zaman oynamak istersiniz?",
+      "done_reason": "stop",
+      "eval_count": 31
+    },
+    {
+      "variant": "native_candidate",
+      "case": "recall",
+      "text": "Normalde hangi gün saat kaçta tenis oynarım?",
+      "answer": "Her cumartesi sabah saat 7'de tenis oynarım.",
+      "done_reason": "stop",
+      "eval_count": 19
+    }
+  ]
+}

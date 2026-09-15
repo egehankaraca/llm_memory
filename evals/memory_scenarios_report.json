@@ -1,0 +1,104 @@
+{
+  "runner": "memory_scenarios_v1",
+  "created_at": "2026-09-15T07:51:11.423522+00:00",
+  "memory_url": "http://127.0.0.1:8001",
+  "user_id": "memory-scenario-7af97d5119a646e5811501c51abdafda",
+  "session_id": "memory-session-7af97d5119a646e5811501c51abdafda",
+  "new_session_id": "memory-new-session-7af97d5119a646e5811501c51abdafda",
+  "other_user_id": "memory-other-7af97d5119a646e5811501c51abdafda",
+  "analyzer_ids": null,
+  "ttl_seconds": 3,
+  "passed": true,
+  "checks": [
+    {
+      "name": "profile duplicate and supersession",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "active_fact_id": "dd0ebc5a-3461-407f-8b6b-804d66a349ef",
+        "superseded_fact_id": "3a8fda27-224b-44bf-a283-37a354ca0fca"
+      },
+      "error": null,
+      "elapsed_seconds": 0.061
+    },
+    {
+      "name": "multiple temporary goals and same-slot update",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "keys": [
+          "evening_news",
+          "rest"
+        ],
+        "updated_key": "evening_news"
+      },
+      "error": null,
+      "elapsed_seconds": 0.036
+    },
+    {
+      "name": "independent temporary-item expiry",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "ttl_seconds": 3,
+        "polls": 13,
+        "expired_key": "ttl_short",
+        "live_key": "ttl_live"
+      },
+      "error": null,
+      "elapsed_seconds": 3.14
+    },
+    {
+      "name": "newest 10 of 15 conversation messages",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "input_count": 15,
+        "window_count": 10,
+        "first_visible_input": 6
+      },
+      "error": null,
+      "elapsed_seconds": 0.068
+    },
+    {
+      "name": "message_id replay",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "message_id": "eb17536a-1227-4bfd-a648-5da9d525bd41",
+        "status": "duplicate"
+      },
+      "error": null,
+      "elapsed_seconds": 0.007
+    },
+    {
+      "name": "new-session and user isolation",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "new_session_id": "memory-new-session-7af97d5119a646e5811501c51abdafda",
+        "profile_retained": true,
+        "temporary_count": 0,
+        "history_count": 0
+      },
+      "error": null,
+      "elapsed_seconds": 0.01
+    },
+    {
+      "name": "session ownership conflicts",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "expected_http_status": 403,
+        "checks": 4
+      },
+      "error": null,
+      "elapsed_seconds": 0.009
+    }
+  ],
+  "notes": [
+    "Storage checks bypass extraction and use no reply model. They are not semantic model-quality claims.",
+    "Optional analyzer checks are finite behavioral cases; any rules/fallback source is a failure.",
+    "Fresh synthetic records remain in the database selected by the running Memory API; no automatic cleanup/deletion."
+  ]
+}

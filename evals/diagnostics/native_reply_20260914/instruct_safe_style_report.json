@@ -1,0 +1,456 @@
+{
+  "created_at": "2026-09-14T09:10:06.312368+00:00",
+  "model": "qwen3:4b-instruct",
+  "ollama_url": "http://127.0.0.1:11434",
+  "preset": "current",
+  "effective_options": {
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 20,
+    "min_p": 0,
+    "num_ctx": 4096,
+    "num_predict": 512
+  },
+  "mode": "synthetic_context_no_memory_service",
+  "memory_requests": 0,
+  "database_writes": 0,
+  "semantic_score": null,
+  "review_note": "Valid means schema/transport only. Read expectations and answers; no semantic pass percentage is calculated.",
+  "summary": {
+    "scenarios": 5,
+    "planned_turns": 10,
+    "requests": 10,
+    "valid": 10,
+    "errors": 0,
+    "rewritten": 0,
+    "skipped": 0,
+    "needs_human_review": 10
+  },
+  "results": [
+    {
+      "scenario_id": "cousin_declaration_recall",
+      "turn": 1,
+      "text": "Kuzenimin adı Ayşe.",
+      "expectation": "Acknowledge this clear statement naturally without turning it into an unnecessary confirmation question. Ayşe is the user's cousin, not the assistant or another relative. Treat the address preference as belonging to the user; do not introduce yourself as Ahmet Bey. Do not claim that durable memory was saved.",
+      "history_before": [],
+      "raw_model_content": "{\"answer\":\"Ahmet Bey’in kuzeninin adı Ayşe, güzel bir isim.\"}",
+      "raw_model_answer": "Ahmet Bey’in kuzeninin adı Ayşe, güzel bir isim.",
+      "displayed_answer": "Ahmet Bey’in kuzeninin adı Ayşe, güzel bir isim.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 620,
+        "eval_count": 23,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 674,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 0,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 3.403
+    },
+    {
+      "scenario_id": "cousin_declaration_recall",
+      "turn": 2,
+      "text": "Kuzenimin adı neydi?",
+      "expectation": "Recall Ayşe from the user's previous statement and preserve the cousin relationship. Do not substitute the unrelated tennis routine, invent uncertainty, or claim durable storage. No exact wording is required.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Kuzenimin adı Ayşe."
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey’in kuzeninin adı Ayşe, güzel bir isim."
+        }
+      ],
+      "raw_model_content": "{ \"answer\": \"Kuzenimin adı Ayşe.\" }",
+      "raw_model_answer": "Kuzenimin adı Ayşe.",
+      "displayed_answer": "Kuzenimin adı Ayşe.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 658,
+        "eval_count": 16,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Kuzenimin adı Ayşe."
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey’in kuzeninin adı Ayşe, güzel bir isim."
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 713,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 2,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 0.678
+    },
+    {
+      "scenario_id": "neighbor_declaration_after_questioning_history",
+      "turn": 1,
+      "text": "Komşumun adı Mehmet.",
+      "expectation": "Recognize the clear new statement and topic change despite the preceding assistant question. Acknowledge the neighbor's name without asking the user to confirm it, connecting Mehmet to tennis, or claiming durable storage. The assistant must not adopt the user's identity.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cumartesi sabah 7'de tenis oynuyorsunuz. O gün mü oynamak istiyorsunuz?"
+        }
+      ],
+      "raw_model_content": "{ \"answer\": \"Mehmet'ten duyduğunuz bir şey var mı? Veya bir konu paylaşmak istiyorsunuz mu?\" }",
+      "raw_model_answer": "Mehmet'ten duyduğunuz bir şey var mı? Veya bir konu paylaşmak istiyorsunuz mu?",
+      "displayed_answer": "Mehmet'ten duyduğunuz bir şey var mı? Veya bir konu paylaşmak istiyorsunuz mu?",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 669,
+        "eval_count": 35,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cumartesi sabah 7'de tenis oynuyorsunuz. O gün mü oynamak istiyorsunuz?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 721,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 2,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.346
+    },
+    {
+      "scenario_id": "neighbor_declaration_after_questioning_history",
+      "turn": 2,
+      "text": "Komşumun adını hatırlıyor musun?",
+      "expectation": "Answer using the user's explicit recent statement: the neighbor's name is Mehmet. Preserve the neighbor relationship rather than inventing a cousin or tennis partner. Do not require stored profile data to use conversation history.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cumartesi sabah 7'de tenis oynuyorsunuz. O gün mü oynamak istiyorsunuz?"
+        },
+        {
+          "role": "user",
+          "content": "Komşumun adı Mehmet."
+        },
+        {
+          "role": "assistant",
+          "content": "Mehmet'ten duyduğunuz bir şey var mı? Veya bir konu paylaşmak istiyorsunuz mu?"
+        }
+      ],
+      "raw_model_content": "{ \"answer\": \"Evet, komşunuz Mehmet.\" }",
+      "raw_model_answer": "Evet, komşunuz Mehmet.",
+      "displayed_answer": "Evet, komşunuz Mehmet.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 718,
+        "eval_count": 17,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cumartesi sabah 7'de tenis oynuyorsunuz. O gün mü oynamak istiyorsunuz?"
+        },
+        {
+          "role": "user",
+          "content": "Komşumun adı Mehmet."
+        },
+        {
+          "role": "assistant",
+          "content": "Mehmet'ten duyduğunuz bir şey var mı? Veya bir konu paylaşmak istiyorsunuz mu?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 774,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 4,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 0.72
+    },
+    {
+      "scenario_id": "coffee_preference_declaration_recall",
+      "turn": 1,
+      "text": "Kahveyi şekersiz severim.",
+      "expectation": "Naturally acknowledge the explicit sugar-free coffee preference without needless confirmation, health assumptions, or an unrelated tennis recap. Do not claim a preference was durably saved. Understand the user's address preference without copying its full instruction.",
+      "history_before": [],
+      "raw_model_content": "{\"answer\":\"Şekersiz kahve memnuniyetle bilirim, çok iyi bir tercih.\"}",
+      "raw_model_answer": "Şekersiz kahve memnuniyetle bilirim, çok iyi bir tercih.",
+      "displayed_answer": "Şekersiz kahve memnuniyetle bilirim, çok iyi bir tercih.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 621,
+        "eval_count": 28,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 676,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 0,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.021
+    },
+    {
+      "scenario_id": "coffee_preference_declaration_recall",
+      "turn": 2,
+      "text": "Kahvemi nasıl severim?",
+      "expectation": "Recall that the user likes coffee without sugar. Do not infer an unstated coffee type, serving time, or medical reason. Use recent user context even though this no-write runner does not update profile facts.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Kahveyi şekersiz severim."
+        },
+        {
+          "role": "assistant",
+          "content": "Şekersiz kahve memnuniyetle bilirim, çok iyi bir tercih."
+        }
+      ],
+      "raw_model_content": "{\"answer\":\"Kahvemi sıcak, az şekerli ve biraz kaymakla içiyorum.\"}",
+      "raw_model_answer": "Kahvemi sıcak, az şekerli ve biraz kaymakla içiyorum.",
+      "displayed_answer": "Kahvemi sıcak, az şekerli ve biraz kaymakla içiyorum.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 662,
+        "eval_count": 24,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Kahveyi şekersiz severim."
+        },
+        {
+          "role": "assistant",
+          "content": "Şekersiz kahve memnuniyetle bilirim, çok iyi bir tercih."
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 719,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 2,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 0.937
+    },
+    {
+      "scenario_id": "residence_declaration_recall",
+      "turn": 1,
+      "text": "İzmir'de yaşıyorum.",
+      "expectation": "Acknowledge the user's explicit residence statement naturally without an unnecessary confirmation question. Do not infer a street address, real-time weather, or the assistant's residence, and do not claim durable storage.",
+      "history_before": [],
+      "raw_model_content": "{\"answer\":\"İzmir'de yaşıyorsunuz, güzel bir şehir!\"}",
+      "raw_model_answer": "İzmir'de yaşıyorsunuz, güzel bir şehir!",
+      "displayed_answer": "İzmir'de yaşıyorsunuz, güzel bir şehir!",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 597,
+        "eval_count": 22,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 650,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.05
+    },
+    {
+      "scenario_id": "residence_declaration_recall",
+      "turn": 2,
+      "text": "Hangi şehirde yaşıyorum?",
+      "expectation": "Recall İzmir from the prior user statement. Do not invent a different city or say no information is available merely because the no-write profile is unchanged. No exact output sentence is required.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "İzmir'de yaşıyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "İzmir'de yaşıyorsunuz, güzel bir şehir!"
+        }
+      ],
+      "raw_model_content": "{\"answer\":\"İzmir'de yaşıyorsunuz.\"}",
+      "raw_model_answer": "İzmir'de yaşıyorsunuz.",
+      "displayed_answer": "İzmir'de yaşıyorsunuz.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 634,
+        "eval_count": 23,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "İzmir'de yaşıyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "İzmir'de yaşıyorsunuz, güzel bir şehir!"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 687,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 2,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 0.924
+    },
+    {
+      "scenario_id": "unknown_personal",
+      "turn": 1,
+      "text": "Yakınımın adı neydi?",
+      "expectation": "No actual relative name exists; say unknown without inventing a name or a placeholder.",
+      "history_before": [],
+      "raw_model_content": "{\"answer\":\"Bana Ahmet Bey diye hitap et.\"}",
+      "raw_model_answer": "Bana Ahmet Bey diye hitap et.",
+      "displayed_answer": "Bana Ahmet Bey diye hitap et.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 598,
+        "eval_count": 16,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 650,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 0.643
+    },
+    {
+      "scenario_id": "unknown_personal",
+      "turn": 2,
+      "text": "Ben hangi şehirde yaşıyorum?",
+      "expectation": "No user residence was stated; do not use public capital Ankara as personal residence.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Yakınımın adı neydi?"
+        },
+        {
+          "role": "assistant",
+          "content": "Bana Ahmet Bey diye hitap et."
+        }
+      ],
+      "raw_model_content": "{\n  \"answer\": \"Şehir bilgisi paylaşmadım, bu yüzden bana bu konuda daha fazla bilgi vermeni rica ederim.\"\n}",
+      "raw_model_answer": "Şehir bilgisi paylaşmadım, bu yüzden bana bu konuda daha fazla bilgi vermeni rica ederim.",
+      "displayed_answer": "Şehir bilgisi paylaşmadım, bu yüzden bana bu konuda daha fazla bilgi vermeni rica ederim.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 630,
+        "eval_count": 39,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Yakınımın adı neydi?"
+        },
+        {
+          "role": "assistant",
+          "content": "Bana Ahmet Bey diye hitap et."
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 686,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 2,
+        "style_message_count": 6,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.423
+    }
+  ],
+  "probe_override": "Style pairs replaced by public capital fact, neutral conversation invitation and general activity suggestion; no personal facts or placeholders."
+}

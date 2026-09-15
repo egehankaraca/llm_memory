@@ -1,0 +1,46 @@
+{
+  "examples": [
+    {
+      "role": "user",
+      "content": "Bu bilgiyi sizinle paylaşmak istedim."
+    },
+    {
+      "role": "assistant",
+      "content": "{\"answer\":\"Anladım, paylaştığınız bilgi için teşekkür ederim.\"}"
+    },
+    {
+      "role": "user",
+      "content": "Sizinle biraz sohbet etmek istiyorum."
+    },
+    {
+      "role": "assistant",
+      "content": "{\"answer\":\"Memnuniyetle, sohbet edebiliriz.\"}"
+    },
+    {
+      "role": "user",
+      "content": "Bir etkinliğe katılsam mı?"
+    },
+    {
+      "role": "assistant",
+      "content": "{\"answer\":\"Nasıl bir etkinlik düşündüğünüze göre birlikte değerlendirebiliriz.\"}"
+    }
+  ],
+  "results": [
+    {
+      "text": "kuzenimin adı ayşe",
+      "answer": "Ahmet Bey, Ayşe hanımın kuzenim mi?"
+    },
+    {
+      "text": "Yakınımın adı neydi?",
+      "answer": "Sizinle sohbet edebiliriz."
+    },
+    {
+      "text": "Kahveyi şekersiz severim",
+      "answer": "Ahmet Bey, kahveyi şekersiz sever misiniz?"
+    },
+    {
+      "text": "Komşumun adı Mehmet.",
+      "answer": "Ahmet Bey, Mehmet beyi tanıyor musunuz?"
+    }
+  ]
+}

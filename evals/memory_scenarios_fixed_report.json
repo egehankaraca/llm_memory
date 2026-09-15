@@ -1,0 +1,1057 @@
+{
+  "runner": "memory_scenarios_v1",
+  "created_at": "2026-09-15T08:29:01.606804+00:00",
+  "memory_url": "http://127.0.0.1:8003",
+  "user_id": "memory-scenario-b58021a5e25f40ddbebbae84a5b714ab",
+  "session_id": "memory-session-b58021a5e25f40ddbebbae84a5b714ab",
+  "new_session_id": "memory-new-session-b58021a5e25f40ddbebbae84a5b714ab",
+  "other_user_id": "memory-other-b58021a5e25f40ddbebbae84a5b714ab",
+  "analyzer_ids": {
+    "user_id": "memory-analyzer-18b235df0a4947d58d9aade4aea40dda",
+    "session_id": "analyzer-session-18b235df0a4947d58d9aade4aea40dda"
+  },
+  "ttl_seconds": 3,
+  "passed": true,
+  "analyzer_summary": {
+    "decision_count": 15,
+    "pure_ollama_count": 14,
+    "guard_intervention_count": 1,
+    "fallback_count": 0
+  },
+  "checks": [
+    {
+      "name": "profile duplicate and supersession",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "active_fact_id": "ef708c87-a3be-4de7-a14b-f83f45a87fa6",
+        "superseded_fact_id": "642a9c42-11bf-4082-b236-9274f7122b0f"
+      },
+      "error": null,
+      "elapsed_seconds": 0.061
+    },
+    {
+      "name": "multiple temporary goals and same-slot update",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "keys": [
+          "evening_news",
+          "rest"
+        ],
+        "updated_key": "evening_news"
+      },
+      "error": null,
+      "elapsed_seconds": 0.035
+    },
+    {
+      "name": "independent temporary-item expiry",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "ttl_seconds": 3,
+        "polls": 13,
+        "expired_key": "ttl_short",
+        "live_key": "ttl_live"
+      },
+      "error": null,
+      "elapsed_seconds": 3.188
+    },
+    {
+      "name": "newest 10 of 15 conversation messages",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "input_count": 15,
+        "window_count": 10,
+        "first_visible_input": 6
+      },
+      "error": null,
+      "elapsed_seconds": 0.065
+    },
+    {
+      "name": "message_id replay",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "message_id": "b4bc1450-61a8-4d7d-b57b-3e65ddfd4ba9",
+        "status": "duplicate"
+      },
+      "error": null,
+      "elapsed_seconds": 0.007
+    },
+    {
+      "name": "new-session and user isolation",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "new_session_id": "memory-new-session-b58021a5e25f40ddbebbae84a5b714ab",
+        "profile_retained": true,
+        "temporary_count": 0,
+        "history_count": 0
+      },
+      "error": null,
+      "elapsed_seconds": 0.01
+    },
+    {
+      "name": "session ownership conflicts",
+      "mode": "storage",
+      "passed": true,
+      "detail": {
+        "expected_http_status": 403,
+        "checks": 4
+      },
+      "error": null,
+      "elapsed_seconds": 0.008
+    },
+    {
+      "name": "input 1: long_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 1,
+        "text": "Bana bundan sonra Ahmet Bey diye hitap et.",
+        "expected_type": "long_term",
+        "decisions": [
+          {
+            "candidate_id": "9c20db89-151b-4ea3-8f41-87c2a392ceb0",
+            "event_id": "ec92eafd-0f81-49e9-8edc-dbf4393ffa53",
+            "memory_type": "long_term",
+            "category": "communication",
+            "key": "form_of_address",
+            "value": "Ahmet Bey",
+            "sensitivity": "personal",
+            "confidence": 1.0,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Bana bundan sonra Ahmet Bey diye hitap et.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "preference",
+              "temporal_scope": "persistent",
+              "sensitivity_domain": "personal",
+              "extracted_category": "communication",
+              "extracted_key": "form_of_address",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "consolidation": {
+                "version": "1",
+                "action": "create",
+                "matched_fact_id": null,
+                "matched_by": null,
+                "similarity": null,
+                "reason": "Aynı kavramı temsil eden aktif memory bulunamadı."
+              },
+              "storage_destination": "profile"
+            },
+            "consolidation_action": "create",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının hitap şekli tercihini açıkça belirttiği bir ifade. Bu, iletişim tercihlerini belirleyen bir kişisel tercih olarak kaydedilmelidir. Consolidation: Aynı kavramı temsil eden aktif memory bulunamadı.",
+            "expires_at": null,
+            "applied_ref": "b87e6546-0d43-4e41-aa94-22b068e230de"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 16.726
+    },
+    {
+      "name": "input 2: long_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 2,
+        "text": "Her sabah sade Türk kahvesi içerim.",
+        "expected_type": "long_term",
+        "decisions": [
+          {
+            "candidate_id": "a9c6d077-e7d6-4d2c-a832-c9e527598c3c",
+            "event_id": "026eaaf3-485e-4af8-917f-d57eaf98f350",
+            "memory_type": "long_term",
+            "category": "routine",
+            "key": "morning_coffee",
+            "value": "Her sabah sade Türk kahvesi içerim",
+            "sensitivity": "normal",
+            "confidence": 0.95,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Her sabah sade Türk kahvesi içerim.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "habit",
+              "temporal_scope": "persistent",
+              "sensitivity_domain": "none",
+              "extracted_category": "routine",
+              "extracted_key": "morning_coffee",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "consolidation": {
+                "version": "1",
+                "action": "create",
+                "matched_fact_id": null,
+                "matched_by": null,
+                "similarity": null,
+                "reason": "Aynı kavramı temsil eden aktif memory bulunamadı."
+              },
+              "storage_destination": "profile"
+            },
+            "consolidation_action": "create",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının sabah kahve içme alışkanlığına dair açık bir ifade. Consolidation: Aynı kavramı temsil eden aktif memory bulunamadı.",
+            "expires_at": null,
+            "applied_ref": "c23abb8f-4940-48b8-b05d-c446dfa0329b"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 10.057
+    },
+    {
+      "name": "input 3: long_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 3,
+        "text": "Her cumartesi sabah saat 7'de tenis oynarım.",
+        "expected_type": "long_term",
+        "decisions": [
+          {
+            "candidate_id": "e78fbccb-75eb-4c73-8ba5-030a0acb7e35",
+            "event_id": "9de657a2-b3e8-47a4-a839-6f2a44eea7fa",
+            "memory_type": "long_term",
+            "category": "routine",
+            "key": "tennis_scheduled",
+            "value": "Her cumartesi sabah saat 7'de tenis oynarım",
+            "sensitivity": "normal",
+            "confidence": 0.95,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Her cumartesi sabah saat 7'de tenis oynarım.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "habit",
+              "temporal_scope": "persistent",
+              "sensitivity_domain": "none",
+              "extracted_category": "routine",
+              "extracted_key": "tennis_scheduled",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "consolidation": {
+                "version": "1",
+                "action": "create",
+                "matched_fact_id": null,
+                "matched_by": null,
+                "similarity": null,
+                "reason": "Aynı kavramı temsil eden aktif memory bulunamadı."
+              },
+              "storage_destination": "profile"
+            },
+            "consolidation_action": "create",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının hafta sonu sabah saat 7'de tenis oynamasıyla ilgili bir alışkanlık ifadesi içeriyor. Consolidation: Aynı kavramı temsil eden aktif memory bulunamadı.",
+            "expires_at": null,
+            "applied_ref": "b78f5057-9195-4b4e-bf7f-a25a1c676538"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 10.294
+    },
+    {
+      "name": "input 4: long_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 4,
+        "text": "Her sabah sade Türk kahvesi içerim.",
+        "expected_type": "long_term",
+        "decisions": [
+          {
+            "candidate_id": "981153a2-e81f-4341-9212-3cdffa82126e",
+            "event_id": "4d7124b6-f61f-48c6-b6bb-98b01293eeab",
+            "memory_type": "long_term",
+            "category": "routine",
+            "key": "morning_coffee",
+            "value": "Her sabah sade Türk kahvesi içerim.",
+            "sensitivity": "normal",
+            "confidence": 1.0,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Her sabah sade Türk kahvesi içerim.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "habit",
+              "temporal_scope": "persistent",
+              "sensitivity_domain": "none",
+              "extracted_category": "routine",
+              "extracted_key": "morning_coffee",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "consolidation": {
+                "version": "1",
+                "action": "unchanged",
+                "matched_fact_id": "c23abb8f-4940-48b8-b05d-c446dfa0329b",
+                "matched_by": "canonical_slot",
+                "similarity": 1.0,
+                "reason": "Aynı memory değeri zaten aktif; yeni fact oluşturulmadı."
+              },
+              "storage_destination": "profile"
+            },
+            "consolidation_action": "unchanged",
+            "consolidates_fact_id": "c23abb8f-4940-48b8-b05d-c446dfa0329b",
+            "status": "auto_applied",
+            "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kahve içme alışkanlığı, kullanıcıya ait bir rutin harekettir. Consolidation: Aynı memory değeri zaten aktif; yeni fact oluşturulmadı.",
+            "expires_at": null,
+            "applied_ref": "c23abb8f-4940-48b8-b05d-c446dfa0329b"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 7.65
+    },
+    {
+      "name": "input 5: long_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 5,
+        "text": "Artık her cumartesi sabah saat 8'de tenis oynarım.",
+        "expected_type": "long_term",
+        "decisions": [
+          {
+            "candidate_id": "6e0acf48-003b-4da0-a82f-65f240a69bb8",
+            "event_id": "a60ac490-3c86-4064-90f1-ab5c83d5883e",
+            "memory_type": "long_term",
+            "category": "routine",
+            "key": "tennis_scheduled",
+            "value": "Her cumartesi sabah saat 8'de tenis oynarım",
+            "sensitivity": "normal",
+            "confidence": 0.95,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Artık her cumartesi sabah saat 8'de tenis oynarım.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "habit",
+              "temporal_scope": "persistent",
+              "sensitivity_domain": "none",
+              "extracted_category": "routine",
+              "extracted_key": "tennis_scheduled",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "consolidation": {
+                "version": "1",
+                "action": "supersede",
+                "matched_fact_id": "b78f5057-9195-4b4e-bf7f-a25a1c676538",
+                "matched_by": "canonical_slot",
+                "similarity": 1.0,
+                "reason": "Kullanıcı mevcut memory için açık bir güncelleme belirtti."
+              },
+              "storage_destination": "profile"
+            },
+            "consolidation_action": "supersede",
+            "consolidates_fact_id": "b78f5057-9195-4b4e-bf7f-a25a1c676538",
+            "status": "auto_applied",
+            "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının tenis oyunu zamanı değiştiğini açıkça belirtti. Önceki zaman (7) artık geçerli değil. Bu bir alışkanlık değişikliği olarak kaydedilmelidir. Consolidation: Kullanıcı mevcut memory için açık bir güncelleme belirtti.",
+            "expires_at": null,
+            "applied_ref": "8e2e5c12-75ab-45bf-b49d-80ac59316176"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 11.548
+    },
+    {
+      "name": "input 6: short_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 6,
+        "text": "Bugün dışarı çıkmak istiyorum.",
+        "expected_type": "short_term",
+        "decisions": [
+          {
+            "candidate_id": "e3d65faf-461b-4ee5-9386-65311cd237d2",
+            "event_id": "bd71236c-ed2f-4b91-9293-adff514db8a9",
+            "memory_type": "short_term",
+            "category": "session",
+            "key": "outdoor_activity_intent",
+            "value": {
+              "type": "user_intent",
+              "description": "Dışarı çıkmak istiyorum",
+              "source_text": "Bugün dışarı çıkmak istiyorum.",
+              "target": "today"
+            },
+            "sensitivity": "normal",
+            "confidence": 0.95,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Bugün dışarı çıkmak istiyorum.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "intent",
+              "temporal_scope": "today",
+              "sensitivity_domain": "none",
+              "extracted_category": "intent",
+              "extracted_key": "outdoor_activity_intent",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "temporary_slot": {
+                "action": "model_key",
+                "requested_key": "outdoor_activity_intent",
+                "resolved_key": "outdoor_activity_intent"
+              },
+              "storage_destination": "temporary"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının bugün dışarı çıkmak istediğini açıkça ifade etti.",
+            "expires_at": "2026-09-15T21:00:00+00:00",
+            "applied_ref": "e4c8577b-fc8f-4df4-b040-5ea2bf87f8d4"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 8.766
+    },
+    {
+      "name": "input 7: short_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 7,
+        "text": "Bu akşam haberleri izlemek istiyorum.",
+        "expected_type": "short_term",
+        "decisions": [
+          {
+            "candidate_id": "26dc95b2-42cf-4b51-88a9-4e6e3afb9aba",
+            "event_id": "e23351b5-ec0e-4f5e-8c13-0821ff3affca",
+            "memory_type": "short_term",
+            "category": "session",
+            "key": "temporary_759fec301bb3",
+            "value": {
+              "type": "user_intent",
+              "description": "Haberleri izlemek istiyorum",
+              "source_text": "Bu akşam haberleri izlemek istiyorum.",
+              "target": "today"
+            },
+            "sensitivity": "normal",
+            "confidence": 1.0,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Bu akşam haberleri izlemek istiyorum.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "intent",
+              "temporal_scope": "today",
+              "sensitivity_domain": "none",
+              "extracted_category": "session",
+              "extracted_key": "outdoor_activity_intent",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "temporary_slot": {
+                "action": "collision_disambiguated",
+                "requested_key": "outdoor_activity_intent",
+                "resolved_key": "temporary_759fec301bb3"
+              },
+              "storage_destination": "temporary"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının bugün akşam haberleri izlemek istemesi, bir dışarı çıkmak istemesi ile ilişkilendirilebilir. Bu, bir dışarı aktivitesi olarak değerlendirilebilir.",
+            "expires_at": "2026-09-15T21:00:00+00:00",
+            "applied_ref": "7991cfdf-6bb3-460f-8c9f-c3516b863a80"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 10.81
+    },
+    {
+      "name": "input 8: short_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 8,
+        "text": "Şimdi bir bardak su içeceğim.",
+        "expected_type": "short_term",
+        "decisions": [
+          {
+            "candidate_id": "21d5f59d-abba-484b-a11a-040c489a9ac5",
+            "event_id": "3b9bbb67-3a9e-41df-9130-7631f29e0f40",
+            "memory_type": "short_term",
+            "category": "session",
+            "key": "temporary_2fb8da290582",
+            "value": {
+              "type": "user_intent",
+              "description": "Bir bardak su içmek istiyorum",
+              "source_text": "Şimdi bir bardak su içeceğim.",
+              "target": "current_session"
+            },
+            "sensitivity": "normal",
+            "confidence": 1.0,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Şimdi bir bardak su içeceğim.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "intent",
+              "temporal_scope": "current_session",
+              "sensitivity_domain": "none",
+              "extracted_category": "session",
+              "extracted_key": "temporary_759fec301bb3",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "temporary_slot": {
+                "action": "collision_disambiguated",
+                "requested_key": "temporary_759fec301bb3",
+                "resolved_key": "temporary_2fb8da290582"
+              },
+              "storage_destination": "temporary"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının şu an bir bardak su içmek istemesi, geçici bir isteğidir ve mevcut oturum bağlamında tutulmalıdır.",
+            "expires_at": "2026-09-15T09:27:11.330658+00:00",
+            "applied_ref": "2e09d704-2af4-431e-a0ff-e3490f711c13"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 11.131
+    },
+    {
+      "name": "input 9: short_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 9,
+        "text": "Biraz dinlenmek istiyorum.",
+        "expected_type": "short_term",
+        "decisions": [
+          {
+            "candidate_id": "a9ec4f29-ff03-4112-a02a-35cc39d3d4ce",
+            "event_id": "7fd5aeaa-c282-4cf9-a65d-c2e2e7d17460",
+            "memory_type": "short_term",
+            "category": "session",
+            "key": "item_bd279e322db5",
+            "value": {
+              "type": "user_intent",
+              "description": "Biraz dinlenmek istiyorum.",
+              "source_text": "Biraz dinlenmek istiyorum.",
+              "target": "today"
+            },
+            "sensitivity": "normal",
+            "confidence": 0.9,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Biraz dinlenmek istiyorum.",
+              "should_store": false,
+              "subject": "user",
+              "speech_act": "intent",
+              "temporal_scope": "today",
+              "sensitivity_domain": "none",
+              "extracted_category": "none",
+              "extracted_key": "none",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "key_fallback_used": true,
+              "extraction_retry_count": 1,
+              "extraction_retry_failed": false,
+              "extraction_retry_reasons": [
+                "inconsistent_semantic_labels"
+              ],
+              "initial_claim_kinds": [
+                "question"
+              ],
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "temporary_slot": {
+                "action": "model_key",
+                "requested_key": "item_bd279e322db5",
+                "resolved_key": "item_bd279e322db5"
+              },
+              "storage_destination": "temporary"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının bugün biraz dinlenmek istediğini ifade ettiği bir istek ifadesi. Bu bir geçici istek ve doğrudan bir bilgi değil, bir istek ifadesidir. 'İstek' etiketi, kullanıcıya ait bir plan veya durumu ifade etmektedir ve bu nedenle 'assertion' olarak sınıflandırılmalıdır.",
+            "expires_at": "2026-09-15T21:00:00+00:00",
+            "applied_ref": "1c475dcf-29d9-4faf-aa6b-47a5aafaf517"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 27.338
+    },
+    {
+      "name": "input 10: sensitive",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 10,
+        "text": "Tansiyon ilacımı sabah kahvaltıdan sonra alıyorum.",
+        "expected_type": "sensitive",
+        "decisions": [
+          {
+            "candidate_id": "c2da5f7d-ef2a-483d-b6f9-a32c3445ddb2",
+            "event_id": "b1a9977f-1288-40a1-9f5c-5f154798414f",
+            "memory_type": "sensitive",
+            "category": "medication",
+            "key": "medication_schedule",
+            "value": "Tansiyon ilacımı sabah kahvaltıdan sonra alıyorum",
+            "sensitivity": "health",
+            "confidence": 0.95,
+            "requires_confirmation": true,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Tansiyon ilacımı sabah kahvaltıdan sonra alıyorum.",
+              "should_store": true,
+              "subject": "user",
+              "speech_act": "habit",
+              "temporal_scope": "persistent",
+              "sensitivity_domain": "health",
+              "extracted_category": "medication",
+              "extracted_key": "medication_schedule",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "consolidation": {
+                "version": "1",
+                "action": "create",
+                "matched_fact_id": null,
+                "matched_by": null,
+                "similarity": null,
+                "reason": "Aynı kavramı temsil eden aktif memory bulunamadı."
+              },
+              "storage_destination": "profile"
+            },
+            "consolidation_action": "create",
+            "consolidates_fact_id": null,
+            "status": "pending",
+            "reason": "Policy: Hassas alan açık kullanıcı onayı olmadan kalıcılaştırılamaz. Extractor: Kullanıcının tansiyon ilacının sabah kahvaltıdan sonra alınmasıyla ilgili bir alışkanlık bildirdiği açıkça belirtilmiştir. Consolidation: Aynı kavramı temsil eden aktif memory bulunamadı.",
+            "expires_at": null,
+            "applied_ref": null
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 12.572
+    },
+    {
+      "name": "input 11: sensitive",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 11,
+        "text": "Başım ağrıyor.",
+        "expected_type": "sensitive",
+        "decisions": [
+          {
+            "candidate_id": "9f2c2d58-6689-443a-baf1-049d75ccf4ad",
+            "event_id": "57609bbf-859c-4cc1-9271-4835fa6a123e",
+            "memory_type": "sensitive",
+            "category": "health",
+            "key": "item_ac67435d5008",
+            "value": {
+              "type": "user_intent",
+              "description": "Başım ağrıyor.",
+              "source_text": "Başım ağrıyor.",
+              "target": "current_session"
+            },
+            "sensitivity": "health",
+            "confidence": 0.9,
+            "requires_confirmation": true,
+            "analyzer_source": "rules_guard",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "assertion",
+              "evidence_text": "Başım ağrıyor.",
+              "should_store": false,
+              "subject": "user",
+              "speech_act": "current_state",
+              "temporal_scope": "current_session",
+              "sensitivity_domain": "none",
+              "extracted_category": "none",
+              "extracted_key": "none",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "key_fallback_used": true,
+              "extraction_retry_count": 1,
+              "extraction_retry_failed": false,
+              "extraction_retry_reasons": [
+                "declarative_labeled_as_question"
+              ],
+              "initial_claim_kinds": [
+                "question"
+              ],
+              "source": "rules_guard",
+              "upstream_analyzer_source": "ollama",
+              "policy_guard": "sensitive_rules_guard",
+              "guard_generated_candidate": false,
+              "effective_sensitivity_domain": "health",
+              "sensitivity_overridden_by_policy": true,
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "storage_destination": "temporary"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "pending",
+            "reason": "Hassas sağlık veya acil kişi bilgisi kullanıcı onayı gerektirir.",
+            "expires_at": "2026-09-15T09:28:02.371779+00:00",
+            "applied_ref": null
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 24.227
+    },
+    {
+      "name": "input 12: discard",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 12,
+        "text": "Her sabah ne içerim?",
+        "expected_type": "discard",
+        "decisions": [
+          {
+            "candidate_id": "49d0ce0f-74a0-4d1b-91a0-2d9ee29a79c9",
+            "event_id": "f3ab3995-5633-4a6b-a984-c3bcf74c0dde",
+            "memory_type": "discard",
+            "category": null,
+            "key": null,
+            "value": null,
+            "sensitivity": "normal",
+            "confidence": 0.95,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "question",
+              "evidence_text": "Her sabah ne içerim?",
+              "should_store": false,
+              "subject": "unknown",
+              "speech_act": "question",
+              "temporal_scope": "unknown",
+              "sensitivity_domain": "none",
+              "extracted_category": "none",
+              "extracted_key": "none",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "key_fallback_used": true,
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "storage_destination": "none"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "ignored",
+            "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının sabah içeceğiyle ilgili bir soru sorduğu için bu bir soru türüdür.",
+            "expires_at": null,
+            "applied_ref": null
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 8.772
+    },
+    {
+      "name": "input 13: discard",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 13,
+        "text": "Tenisi hangi saatte oynarım?",
+        "expected_type": "discard",
+        "decisions": [
+          {
+            "candidate_id": "4e8ec918-7916-44ec-8b53-99d79db496e4",
+            "event_id": "d6617606-ca17-493c-8a1a-3520edd7e4ac",
+            "memory_type": "discard",
+            "category": null,
+            "key": null,
+            "value": null,
+            "sensitivity": "normal",
+            "confidence": 0.9,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "question",
+              "evidence_text": "Tenisi hangi saatte oynarım?",
+              "should_store": false,
+              "subject": "unknown",
+              "speech_act": "question",
+              "temporal_scope": "unknown",
+              "sensitivity_domain": "none",
+              "extracted_category": "none",
+              "extracted_key": "none",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "key_fallback_used": true,
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "storage_destination": "none"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "ignored",
+            "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının tenis oynama saati hakkında bir soru sorduğu belirlendi.",
+            "expires_at": null,
+            "applied_ref": null
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 8.927
+    },
+    {
+      "name": "input 14: discard",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 14,
+        "text": "Merhaba.",
+        "expected_type": "discard",
+        "decisions": [
+          {
+            "candidate_id": "1cc18575-5c44-43ad-a2cd-7e71740a6893",
+            "event_id": "9f91692b-eb97-45a8-9875-0a324c63d504",
+            "memory_type": "discard",
+            "category": null,
+            "key": null,
+            "value": null,
+            "sensitivity": "normal",
+            "confidence": 0.95,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "question",
+              "evidence_text": "Merhaba.",
+              "should_store": false,
+              "subject": "unknown",
+              "speech_act": "greeting",
+              "temporal_scope": "unknown",
+              "sensitivity_domain": "none",
+              "extracted_category": "none",
+              "extracted_key": "none",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "key_fallback_used": true,
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "storage_destination": "none"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "ignored",
+            "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Greeting without any explicit assertion or question.",
+            "expires_at": null,
+            "applied_ref": null
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 7.194
+    },
+    {
+      "name": "input 15: short_term",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "input_number": 15,
+        "text": "Şimdi odama geçiyorum.",
+        "expected_type": "short_term",
+        "decisions": [
+          {
+            "candidate_id": "d4216ae8-4845-4b70-aed6-56db99c1637b",
+            "event_id": "bcd82b8a-3b2e-4358-8dc1-09dfe4a6fcd2",
+            "memory_type": "short_term",
+            "category": "session",
+            "key": "item_e7d24de36f75",
+            "value": {
+              "type": "user_intent",
+              "description": "Şimdi odama geçiyorum.",
+              "source_text": "Şimdi odama geçiyorum.",
+              "target": "current_session"
+            },
+            "sensitivity": "normal",
+            "confidence": 0.9,
+            "requires_confirmation": false,
+            "analyzer_source": "ollama",
+            "analysis": {
+              "policy_version": "3",
+              "claim_kind": "contextual_reply",
+              "evidence_text": "Şimdi odama geçiyorum.",
+              "should_store": false,
+              "subject": "user",
+              "speech_act": "intent",
+              "temporal_scope": "current_session",
+              "sensitivity_domain": "none",
+              "extracted_category": "none",
+              "extracted_key": "none",
+              "matched_memory_id": null,
+              "relation_to_existing": "none",
+              "key_fallback_used": true,
+              "analysis_context": {
+                "strategy": "last_assistant_suffix_v1",
+                "message_count": 0
+              },
+              "temporary_slot": {
+                "action": "model_key",
+                "requested_key": "item_e7d24de36f75",
+                "resolved_key": "item_e7d24de36f75"
+              },
+              "storage_destination": "temporary"
+            },
+            "consolidation_action": "not_applicable",
+            "consolidates_fact_id": null,
+            "status": "auto_applied",
+            "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının mevcut bir eylem planı (odaya geçmek) belirtmesi, geçici bir eylem ifadesidir ve mevcut konuşmaya bağlanır.",
+            "expires_at": "2026-09-15T09:28:51.491978+00:00",
+            "applied_ref": "b7ab2187-09ab-4515-acd6-28d7ddaab3cb"
+          }
+        ]
+      },
+      "error": null,
+      "elapsed_seconds": 10.086
+    },
+    {
+      "name": "active coffee deduplication and tennis correction",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "active_coffee_count": 1,
+        "active_tennis_count": 1,
+        "tennis_value": "Her cumartesi sabah saat 8'de tenis oynarım"
+      },
+      "error": null,
+      "elapsed_seconds": 0.003
+    },
+    {
+      "name": "unrelated temporary intents survive key collisions",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "temporary_count": 5,
+        "outdoor_and_news_coexist": true,
+        "active_keys_are_unique": true
+      },
+      "error": null,
+      "elapsed_seconds": 0.004
+    },
+    {
+      "name": "pending sensitive raw-history policy",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "raw_window_count": 10,
+        "default_pending_text_hidden": true,
+        "explicit_opt_in_restored": true,
+        "pending_health_in_temporary": false
+      },
+      "error": null,
+      "elapsed_seconds": 0.02
+    },
+    {
+      "name": "interaction event_id replay",
+      "mode": "analyzer",
+      "passed": true,
+      "detail": {
+        "event_id": "bcd82b8a-3b2e-4358-8dc1-09dfe4a6fcd2",
+        "status": "duplicate"
+      },
+      "error": null,
+      "elapsed_seconds": 0.002
+    }
+  ],
+  "notes": [
+    "Storage checks bypass extraction and use no reply model. They are not semantic model-quality claims.",
+    "Optional analyzer checks are finite behavioral cases. A model-backed rules_guard is a passing safety intervention and is counted separately; rules/rules_fallback is a failure.",
+    "Fresh synthetic records remain in the database selected by the running Memory API; no automatic cleanup/deletion."
+  ]
+}

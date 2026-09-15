@@ -1,0 +1,20 @@
+{
+  "boundary": {
+    "role": "system",
+    "content": "Üslup örnekleri burada bitti. Yukarıdaki örnek kullanıcı/asistan mesajları GERÇEK SOHBET GEÇMİŞİ DEĞİLDİR. Köşeli parantezli değişkenleri asla bilinen kişisel bilgi sayma. Gerçek kullanıcı hakkında yalnızca MEMORY_CONTEXT_JSON ve bundan sonraki gerçek kullanıcı beyanlarını kullan. Bir kişisel bilgiyi bu kaynaklarda bulamıyorsan bilmediğini söyle. Şimdi gerçek kullanıcıyla sohbet et."
+  },
+  "results": [
+    {
+      "text": "Yakınımın adı neydi?",
+      "answer": "Yakınınızın adı [isim] idi."
+    },
+    {
+      "text": "kuzenimin adı ayşe",
+      "answer": "Anladım, kuzeninizin adı Ayşe."
+    },
+    {
+      "text": "Yeğenimin adı Deniz.",
+      "answer": "Anladım, yeğeninizin adı Deniz."
+    }
+  ]
+}

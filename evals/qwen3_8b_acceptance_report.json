@@ -1,0 +1,466 @@
+{
+  "created_at": "2026-09-14T13:06:36.761946+00:00",
+  "model": "qwen3:8b",
+  "ollama_url": "http://127.0.0.1:11434",
+  "preset": "current",
+  "effective_options": {
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "top_k": 20,
+    "min_p": 0,
+    "num_ctx": 4096,
+    "num_predict": 512
+  },
+  "mode": "synthetic_context_no_memory_service",
+  "memory_requests": 0,
+  "database_writes": 0,
+  "semantic_score": null,
+  "review_note": "Valid means text/transport only. Read expectations and answers; no semantic pass percentage is calculated.",
+  "summary": {
+    "scenarios": 10,
+    "planned_turns": 14,
+    "requests": 14,
+    "valid": 14,
+    "errors": 0,
+    "skipped": 0,
+    "needs_human_review": 14
+  },
+  "results": [
+    {
+      "scenario_id": "headache_statement",
+      "turn": 1,
+      "text": "Başım ağrıyor.",
+      "expectation": "İnsan değerlendirmesi: Açık bir ağrı beyanına empatik ve ilgili cevap ver. Gerekirse başlangıç/şiddet gibi kısa ve ilgili bir soru sor; yürüyüş, hava veya hayali geçmişe geçme. Tanı, ilaç dozu veya kesin sağlık uygunluğu üretme. Asistan kendi başının ağrıdığını söylememeli; siz hitabını korumalı.",
+      "history_before": [],
+      "answer": "Siz ne zaman başınız ağrıyor? Bir şeyi unuttunuz mu?",
+      "model_stats": {
+        "prompt_eval_count": 372,
+        "eval_count": 20,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 399,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 3.503
+    },
+    {
+      "scenario_id": "cousin_declaration",
+      "turn": 1,
+      "text": "Kuzenimin adı Ayşe.",
+      "expectation": "İnsan değerlendirmesi: Kuzenin adının Ayşe olduğunu doğal biçimde kabul et. Açık beyanı gereksiz yere yeniden doğrulatma veya ilgisiz şehir sorusu ekleme. Ayşe kullanıcıya ait yakındır, asistanın kuzeni değildir. Bu yalnızca cevap testi olduğundan kalıcı hafızaya kaydedildiğini iddia etme.",
+      "history_before": [],
+      "answer": "Ahmet, Ayşe'nin kuzeniyse senin adın Ayşe mi?",
+      "model_stats": {
+        "prompt_eval_count": 374,
+        "eval_count": 21,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 401,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.475
+    },
+    {
+      "scenario_id": "physical_window_intent",
+      "turn": 1,
+      "text": "Pencereyi açmak istiyorum.",
+      "expectation": "İnsan değerlendirmesi: Ev bağlamındaki fiziksel pencere niyetini anla; bilgisayar, uygulama veya masaüstü penceresi talimatına dönüştürme. Hangi pencere/hava nasıl gibi sırf sohbeti sürdürmek için gereksiz sorular sorma. Pencereyi asistanın açtığını iddia etme; kısa ve doğal karşılık ver.",
+      "history_before": [],
+      "answer": "Sizin pencere açma işlemini yapabilirim. Hangi pencereyi açmak istiyorsunuz?",
+      "model_stats": {
+        "prompt_eval_count": 375,
+        "eval_count": 26,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 403,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.651
+    },
+    {
+      "scenario_id": "balcony_intent",
+      "turn": 1,
+      "text": "Balkona çıkmak istiyorum.",
+      "expectation": "İnsan değerlendirmesi: Kullanıcının niyetine kısa ve doğal karşılık ver; durduk yere hava nasıl/hava nasıldı sorusu veya bilinmeyen hava tahmini ekleme. Sağlık uygunluğu ya da yapılmış bir işlem uydurma. Siz hitabını koru; bunun kalıcı bir rutin olduğunu iddia etme.",
+      "history_before": [],
+      "answer": "Sizin balkonunuz var mı? Varsa, neden çıkmak istiyorsunuz?",
+      "model_stats": {
+        "prompt_eval_count": 375,
+        "eval_count": 24,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 403,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.649
+    },
+    {
+      "scenario_id": "room_transition",
+      "turn": 1,
+      "text": "Şimdi odama geçiyorum.",
+      "expectation": "İnsan değerlendirmesi: Kullanıcının kendi odasına geçişini doğal karşıla. Kullanıcının cümlesini asistan kendi hareketiymiş gibi birinci şahısla kopyalama; odama geçiyorsunuz gibi sahiplik karışıklığı yapma. Yapmamı istediğiniz bir şey var mı gibi otomatik bir soru veya sebepsiz vedalaşma ekleme.",
+      "history_before": [],
+      "answer": "Şimdi odanıza geldiniz mi? Ne yapmak istersiniz?",
+      "model_stats": {
+        "prompt_eval_count": 373,
+        "eval_count": 18,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 402,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.359
+    },
+    {
+      "scenario_id": "coffee_memory_recall",
+      "turn": 1,
+      "text": "Sabahları ne içerdim, unuttum?",
+      "expectation": "İnsan değerlendirmesi: Seçilmiş profil bilgisinden her sabah bol köpüklü Türk kahvesi içildiğini söyle. Kayıttaki içerim kullanıcıya aittir; cevap kullanıcıya ikinci şahısla yönelmeli, asistan kendi alışkanlığıymış gibi içerim dememeli. Hatırlama sorusunu yeni bir öneriye dönüştürme ve ek ayrıntı uydurma.",
+      "history_before": [],
+      "answer": "Sana sabahları bol köpüklü Türk kahvesi içerdiğimi anımsattım. Daha fazla detay mı istersin?",
+      "model_stats": {
+        "prompt_eval_count": 452,
+        "eval_count": 37,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 497,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.711
+    },
+    {
+      "scenario_id": "news_intent_then_recall",
+      "turn": 1,
+      "text": "Önce haberleri izlemek istiyorum.",
+      "expectation": "İnsan değerlendirmesi: Kullanıcının önce haber izleme niyetini kabul et. Her beyanda bir soru sorma; sırf sohbeti sürdürmek için kanal sorusu ekleme. Haberleri açtığını veya kalıcı tercihi kaydettiğini iddia etme.",
+      "history_before": [],
+      "answer": "Siz hangi haberleri izlemek istiyorsunuz?",
+      "model_stats": {
+        "prompt_eval_count": 376,
+        "eval_count": 16,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 405,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.264
+    },
+    {
+      "scenario_id": "news_intent_then_recall",
+      "turn": 2,
+      "text": "Az önce ilk olarak neyi izlemek istediğimi söyledim?",
+      "expectation": "İnsan değerlendirmesi: Önceki kullanıcı mesajından ilk olarak haberleri izlemek istediğini hatırla. Önceki asistan cevabını kopyalamak veya kanal sorusunu tekrar etmek yerine bu hatırlama sorusuna doğrudan cevap ver.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Önce haberleri izlemek istiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Siz hangi haberleri izlemek istiyorsunuz?"
+        }
+      ],
+      "answer": "Az önce haberleri izlemek istediğini söyledin. Hangi haberleri izlemek istiyorsun?",
+      "model_stats": {
+        "prompt_eval_count": 415,
+        "eval_count": 25,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Önce haberleri izlemek istiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Siz hangi haberleri izlemek istiyorsunuz?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 453,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.802
+    },
+    {
+      "scenario_id": "tennis_advice_vs_recall",
+      "turn": 1,
+      "text": "Tenis oynayayım mı?",
+      "expectation": "İnsan değerlendirmesi: Bu bir öneri isteğidir, kayıtlı saatin sorulması değildir. İlgili ve temkinli kısa yardım veya gerçekten gerekli bir açıklama sorusu ver. Sadece cumartesi 7 rutinini tekrar ederek cevaplamış sayma; rutin bilgisinden sağlık uygunluğu, bugünün günü veya güncel hava çıkarma.",
+      "history_before": [],
+      "answer": "Sen her cumartesi sabah 7'de tenis oynuyorsun, doğru mu?",
+      "model_stats": {
+        "prompt_eval_count": 452,
+        "eval_count": 23,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 495,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.627
+    },
+    {
+      "scenario_id": "tennis_advice_vs_recall",
+      "turn": 2,
+      "text": "Peki normalde hangi gün, saat kaçta oynarım?",
+      "expectation": "İnsan değerlendirmesi: Bu tur hatırlama sorusudur; profil bilgisinden cumartesi sabah 7 bilgisini doğrudan söyle. Her gün oynandığını, randevu oluşturulduğunu veya bugünün cumartesi olduğunu iddia etme. Birinci şahıs kayıt metnini asistanın rutini gibi kopyalama.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sen her cumartesi sabah 7'de tenis oynuyorsun, doğru mu?"
+        }
+      ],
+      "answer": "Her cumartesi sabah 7'de tenis oynuyorsun, değil mi?",
+      "model_stats": {
+        "prompt_eval_count": 500,
+        "eval_count": 22,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Sen her cumartesi sabah 7'de tenis oynuyorsun, doğru mu?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 545,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.566
+    },
+    {
+      "scenario_id": "time_correction_then_recall",
+      "turn": 1,
+      "text": "Artık cumartesi sabah 8'de tenis oynuyorum, 7 değil.",
+      "expectation": "İnsan değerlendirmesi: Güncel kullanıcı düzeltmesinin yeni saati 8 olarak belirttiğini anla. Bu cevap testi profil verisini güncellemez; kalıcı kayıt/onay/işlem yapıldığını iddia etme. Açık düzeltmeyi gereksiz yere yeniden doğrulatma.",
+      "history_before": [],
+      "answer": "İyi haber! O zaman artık cumartesi sabah 8'de tenis oynuyorsun. Geçmişteki planın değişti mi?",
+      "model_stats": {
+        "prompt_eval_count": 467,
+        "eval_count": 36,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 509,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.414
+    },
+    {
+      "scenario_id": "time_correction_then_recall",
+      "turn": 2,
+      "text": "Az önce yeni saati kaç olarak söyledim?",
+      "expectation": "İnsan değerlendirmesi: En son kullanıcı düzeltmesinden saat 8 cevabını ver; eski profil değerindeki 7'yi tekrarlama. Kullanıcının kendi sözünü ikinci şahısla anlat ve yeni ayrıntı uydurma.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Artık cumartesi sabah 8'de tenis oynuyorum, 7 değil."
+        },
+        {
+          "role": "assistant",
+          "content": "İyi haber! O zaman artık cumartesi sabah 8'de tenis oynuyorsun. Geçmişteki planın değişti mi?"
+        }
+      ],
+      "answer": "Az önce 8'i söyledin. 7'den 8'e geçtiğini belirttin.",
+      "model_stats": {
+        "prompt_eval_count": 522,
+        "eval_count": 23,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Artık cumartesi sabah 8'de tenis oynuyorum, 7 değil."
+        },
+        {
+          "role": "assistant",
+          "content": "İyi haber! O zaman artık cumartesi sabah 8'de tenis oynuyorsun. Geçmişteki planın değişti mi?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 569,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.664
+    },
+    {
+      "scenario_id": "negative_today_intent",
+      "turn": 1,
+      "text": "Bugün tenis oynamak istemiyorum.",
+      "expectation": "İnsan değerlendirmesi: Bugünkü olumsuz niyeti kabul et ve kullanıcıyı tenis oynamaya zorlamadan karşılık ver. Bugünkü isteksizliği kalıcı cumartesi rutininin iptali gibi yorumlama; işlem veya kayıt uydurma.",
+      "history_before": [],
+      "answer": "Sizin için üzgünüm. Cumartesi sabahı tenis oynamayı planlamıştınız, ama artık istemiyorsunuz. Başka bir plan yapmak ister misiniz?",
+      "model_stats": {
+        "prompt_eval_count": 457,
+        "eval_count": 45,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 505,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.966
+    },
+    {
+      "scenario_id": "negative_today_intent",
+      "turn": 2,
+      "text": "Bugün yapmak istemediğim şey neydi?",
+      "expectation": "İnsan değerlendirmesi: Son kullanıcı mesajındaki olumsuzluğu koruyarak bugün tenis oynamak istemediğini söyle. Oynamak istediği ya da her zaman oynamayı bıraktığı sonucuna varma.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Bugün tenis oynamak istemiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Sizin için üzgünüm. Cumartesi sabahı tenis oynamayı planlamıştınız, ama artık istemiyorsunuz. Başka bir plan yapmak ister misiniz?"
+        }
+      ],
+      "answer": "Cumartesi sabahı tenis oynamayı planlamıştınız. Şimdi artık istemiyorsunuz, doğru mu?",
+      "model_stats": {
+        "prompt_eval_count": 525,
+        "eval_count": 30,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Bugün tenis oynamak istemiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Sizin için üzgünüm. Cumartesi sabahı tenis oynamayı planlamıştınız, ama artık istemiyorsunuz. Başka bir plan yapmak ister misiniz?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 577,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.081
+    }
+  ]
+}

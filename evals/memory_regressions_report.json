@@ -1,0 +1,802 @@
+{
+  "generated_at": "2026-09-14T08:09:02.255061+00:00",
+  "analyzer": {
+    "provider": "ollama",
+    "available": true,
+    "model": "qwen3:8b",
+    "policy_version": "3",
+    "installed_models": [
+      "pentagi-qwen3-instruct:4b",
+      "pentagi-qwen3:4b",
+      "qwen3:4b-instruct",
+      "llama3.1:8b-instruct-q8_0",
+      "qwen3:8b",
+      "embeddinggemma:latest",
+      "gemma4:31b-cloud",
+      "qwen3:4b"
+    ],
+    "fallback_enabled": true,
+    "error": null
+  },
+  "dataset": "evals/memory_regressions.jsonl",
+  "summary": {
+    "cases": 12,
+    "passed": 11,
+    "failed": 1,
+    "pass_rate": 0.9167,
+    "fallbacks": 0,
+    "guarded_cases": 1,
+    "errors": 0,
+    "elapsed_seconds": 112.645,
+    "average_seconds": 9.387,
+    "case_metrics": {
+      "memory_type": {
+        "matched": 11,
+        "cases": 12,
+        "rate": 0.9167
+      },
+      "sensitivity": {
+        "matched": 12,
+        "cases": 12,
+        "rate": 1.0
+      },
+      "confirmation": {
+        "matched": 12,
+        "cases": 12,
+        "rate": 1.0
+      },
+      "destination": {
+        "matched": 11,
+        "cases": 12,
+        "rate": 0.9167
+      }
+    },
+    "sensitive_recall": {
+      "matched": 1,
+      "expected": 1,
+      "rate": 1.0
+    },
+    "decision_metrics_by_type": {
+      "discard": {
+        "matched": 6,
+        "expected": 6,
+        "rate": 1.0
+      },
+      "long_term": {
+        "matched": 2,
+        "expected": 3,
+        "rate": 0.6667
+      },
+      "sensitive": {
+        "matched": 1,
+        "expected": 1,
+        "rate": 1.0
+      },
+      "short_term": {
+        "matched": 2,
+        "expected": 2,
+        "rate": 1.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "reg_question_001",
+      "passed": true,
+      "text": "her sabah kaçta tenis oynarım",
+      "tags": [
+        "question",
+        "no_punctuation",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "her sabah kaçta tenis oynarım",
+            "should_store": false,
+            "subject": "unknown",
+            "speech_act": "question",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının sabah tenis oynama saatini sorduğu bir sorudur. Bu, bir bilgi talebidir ve doğrudan bir iddia veya tercih içermez."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 7.297,
+      "error": null
+    },
+    {
+      "id": "reg_question_002",
+      "passed": true,
+      "text": "Her gün saat kaçta çay içerim",
+      "tags": [
+        "question",
+        "presupposition",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "Her gün saat kaçta çay içerim",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "question",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "evidence_guard": "not_asserted"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının günlük çay içme saatini sorduğu bir soru içeriyor."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [
+        "not_asserted"
+      ],
+      "used_fallback": false,
+      "elapsed_seconds": 8.85,
+      "error": null
+    },
+    {
+      "id": "reg_question_003",
+      "passed": true,
+      "text": "Tansiyon ilacımı ne zaman alıyorum",
+      "tags": [
+        "question",
+        "health",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "Tansiyon ilacımı ne zaman alıyorum",
+            "should_store": false,
+            "subject": "unknown",
+            "speech_act": "question",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının tansiyon ilacının ne zaman alınması gerektiğine dair bir soru sorması, bu bilgiyi doğrudan bir iddia veya tercih olarak değil, bir soru olarak ifade etmektedir. Bu nedenle, bu bilgi bir doğrudan iddia veya tercih olarak değil, bir soru olarak değerlendirilmelidir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 13.483,
+      "error": null
+    },
+    {
+      "id": "reg_question_004",
+      "passed": true,
+      "text": "Her sabah tenis oynuyor muyum",
+      "tags": [
+        "question",
+        "no_punctuation",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "Her sabah tenis oynuyor muyum",
+            "should_store": false,
+            "subject": "unknown",
+            "speech_act": "question",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının sabah tenis oynadığı konusunda bir soru sormaktadır. Bu bir soru cümlesi olup, doğrudan bir iddia veya bilgi içermediği için saklanmamalıdır."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.771,
+      "error": null
+    },
+    {
+      "id": "reg_fragment_001",
+      "passed": true,
+      "text": "tenis",
+      "tags": [
+        "fragment",
+        "contextual_reply",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "tenis",
+            "should_store": false,
+            "subject": "unknown",
+            "speech_act": "question",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının 'Her sabah kaçta tenis oynarım' sorusu üzerine 'tenis' kelimesiyle yanıt vermesi, sorunun doğrudan cevabı olarak algılanamadığı için sorgu türü olarak sınıflandırıldı."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.285,
+      "error": null
+    },
+    {
+      "id": "reg_fragment_002",
+      "passed": true,
+      "text": "kahvaltı",
+      "tags": [
+        "fragment",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "kahvaltı",
+            "should_store": false,
+            "subject": "unknown",
+            "speech_act": "question",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Mesaj, kahvaltı ile ilgili bir soru veya konu başlatıcısı olarak değerlendirildi. Ancak tam bir soru ifadesi olmayan bu ifade, bir soru olarak kabul edildi."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 7.777,
+      "error": null
+    },
+    {
+      "id": "reg_assertion_001",
+      "passed": true,
+      "text": "Her cumartesi sabah saat 7’de tenis oynarım",
+      "tags": [
+        "assertion",
+        "routine",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Her cumartesi sabah saat 7’de tenis oynarım",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Her cumartesi sabah saat 7’de tenis oynarım",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "habit",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "routine",
+            "extracted_key": "tennis_scheduled",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının hafta sonu sabah saat 7'de tenis oynamakla ilgili bir alışkanlık bildirdiği açık ve doğrudan bir ifade."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 12.402,
+      "error": null
+    },
+    {
+      "id": "reg_assertion_002",
+      "passed": true,
+      "text": "Çayımı açık içerim",
+      "tags": [
+        "assertion",
+        "preference",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Çayımı açık içerim",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Çayımı açık içerim",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "drink",
+            "extracted_key": "tea_drinking_style",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının çay içme tarzını açık şekilde belirttiği için bir tercih olarak kaydedilmelidir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.46,
+      "error": null
+    },
+    {
+      "id": "reg_mixed_001",
+      "passed": false,
+      "text": "Çayımı açık içerim. Yarın hava nasıl?",
+      "tags": [
+        "mixed",
+        "question",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "question",
+            "evidence_text": "Yarın hava nasıl?",
+            "should_store": false,
+            "subject": "unknown",
+            "speech_act": "question",
+            "temporal_scope": "today",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Soru, varsayım veya belirsiz çıkarım profile yazılamaz. Extractor: Kullanıcının yarın hava durumuyla ilgili bir soru sorduğu tespit edildi."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 7.008,
+      "error": null
+    },
+    {
+      "id": "reg_short_001",
+      "passed": true,
+      "text": "Bugün parka gitmek istiyorum",
+      "tags": [
+        "intent",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": {
+            "type": "user_intent",
+            "description": "Bugün parka gitmek istiyorum",
+            "source_text": "Bugün parka gitmek istiyorum",
+            "target": "today"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Bugün parka gitmek istiyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "intent",
+            "temporal_scope": "today",
+            "sensitivity_domain": "none",
+            "extracted_category": "activity",
+            "extracted_key": "today_outing",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının bugün parka gitmek istemesi, bir gün içindeki bir eylem planı olarak açık bir istektir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 11.147,
+      "error": null
+    },
+    {
+      "id": "reg_health_001",
+      "passed": true,
+      "text": "Tansiyon hastasıyım",
+      "tags": [
+        "assertion",
+        "health",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Tansiyon hastasıyım",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Tansiyon hastasıyım",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "health",
+            "extracted_category": "health_condition",
+            "extracted_key": "hypertension_status",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Hassas alan açık kullanıcı onayı olmadan kalıcılaştırılamaz. Extractor: Kullanıcının tansiyon hastası olduğunu doğrudan ifade etmesi, sağlık durumuyla ilgili bir açık ifadedir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 10.536,
+      "error": null
+    },
+    {
+      "id": "reg_reply_001",
+      "passed": true,
+      "text": "Evet bugün yapalım",
+      "tags": [
+        "contextual_reply",
+        "regression"
+      ],
+      "expected": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": {
+            "type": "user_intent",
+            "description": "Evet bugün yapalım",
+            "source_text": "Evet bugün yapalım",
+            "target": "today"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "contextual_reply",
+            "evidence_text": "Evet bugün yapalım",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "intent",
+            "temporal_scope": "today",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının yürüyüşe çıkmak istemesiyle ilgili bir soru sorulmuş ve kullanıcı 'Evet bugün yapalım' cevabı vermiştir. Bu, kullanıcıya ait bir geçici amaç ifadesidir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.629,
+      "error": null
+    }
+  ]
+}

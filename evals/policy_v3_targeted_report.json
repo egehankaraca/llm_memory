@@ -1,0 +1,442 @@
+{
+  "generated_at": "2026-09-14T08:05:48.427275+00:00",
+  "analyzer": {
+    "provider": "ollama",
+    "available": true,
+    "model": "qwen3:8b",
+    "policy_version": "3",
+    "installed_models": [
+      "pentagi-qwen3-instruct:4b",
+      "pentagi-qwen3:4b",
+      "qwen3:4b-instruct",
+      "llama3.1:8b-instruct-q8_0",
+      "qwen3:8b",
+      "embeddinggemma:latest",
+      "gemma4:31b-cloud",
+      "qwen3:4b"
+    ],
+    "fallback_enabled": true,
+    "error": null
+  },
+  "dataset": "/Users/egehankaraca/Desktop/llm_memory/evals/memory_cases.jsonl",
+  "summary": {
+    "cases": 6,
+    "passed": 6,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "fallbacks": 0,
+    "guarded_cases": 1,
+    "errors": 0,
+    "elapsed_seconds": 59.182,
+    "average_seconds": 9.864,
+    "case_metrics": {
+      "memory_type": {
+        "matched": 6,
+        "cases": 6,
+        "rate": 1.0
+      },
+      "sensitivity": {
+        "matched": 6,
+        "cases": 6,
+        "rate": 1.0
+      },
+      "confirmation": {
+        "matched": 6,
+        "cases": 6,
+        "rate": 1.0
+      },
+      "destination": {
+        "matched": 6,
+        "cases": 6,
+        "rate": 1.0
+      }
+    },
+    "sensitive_recall": {
+      "matched": 2,
+      "expected": 2,
+      "rate": 1.0
+    },
+    "decision_metrics_by_type": {
+      "long_term": {
+        "matched": 3,
+        "expected": 3,
+        "rate": 1.0
+      },
+      "sensitive": {
+        "matched": 2,
+        "expected": 2,
+        "rate": 1.0
+      },
+      "short_term": {
+        "matched": 1,
+        "expected": 1,
+        "rate": 1.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "long_008",
+      "passed": true,
+      "text": "Türk sanat müziği dinlemek hoşuma gider",
+      "tags": [
+        "long_term",
+        "preference"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Türk sanat müziği",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Türk sanat müziği dinlemek hoşuma gider",
+            "should_store": false,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "entertainment",
+            "extracted_key": "preferred_music_genre",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının Türk sanat müziğini dinlemeyi tercih ettiği bir tercih ifadesi içeriyor."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 13.654,
+      "error": null
+    },
+    {
+      "id": "long_010",
+      "passed": true,
+      "text": "Cuma günleri oğlum beni arar",
+      "tags": [
+        "long_term",
+        "routine",
+        "relationship"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Cuma günleri oğlum beni arar",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Cuma günleri oğlum beni arar",
+            "should_store": false,
+            "subject": "user",
+            "speech_act": "habit",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının oğlumunun Cuma günleri aradığını belirttiği bir alışkanlık ifadesi."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 7.312,
+      "error": null
+    },
+    {
+      "id": "long_012",
+      "passed": true,
+      "text": "Benimle konuşurken kısa cümleler kullan ve yavaş konuş",
+      "tags": [
+        "long_term",
+        "communication",
+        "explicit"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "personal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "personal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Kısa cümleler kullan ve yavaş konuş",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Benimle konuşurken kısa cümleler kullan ve yavaş konuş",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "personal",
+            "extracted_category": "communication",
+            "extracted_key": "conversation_style",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının konuşulma tarzını belirleyen açık bir tercih ifadesi."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 9.67,
+      "error": null
+    },
+    {
+      "id": "short_006",
+      "passed": true,
+      "text": "Bu sabah kahvaltı yapmak istemiyorum",
+      "tags": [
+        "short_term",
+        "today",
+        "negative_intent"
+      ],
+      "expected": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": {
+            "type": "user_intent",
+            "description": "Bu sabah kahvaltı yapmak istemiyorum",
+            "source_text": "Bu sabah kahvaltı yapmak istemiyorum",
+            "target": "today"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Bu sabah kahvaltı yapmak istemiyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "intent",
+            "temporal_scope": "today",
+            "sensitivity_domain": "none",
+            "extracted_category": "meal",
+            "extracted_key": "breakfast_intent",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının sabah kahvaltı yapmak istemediği bir isteğinin açık ifadesi."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 10.252,
+      "error": null
+    },
+    {
+      "id": "sensitive_006",
+      "passed": true,
+      "text": "Acil durumda kızım Ayşe’yi 0555 123 45 67 numarasından ara",
+      "tags": [
+        "sensitive",
+        "emergency_contact",
+        "phone"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "emergency_contact",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "emergency_contact",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "0555 123 45 67",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Acil durumda kızım Ayşe’yi 0555 123 45 67 numarasından ara",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "personal",
+            "extracted_category": "emergency_contact",
+            "extracted_key": "emergency_contact_number",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "effective_sensitivity_domain": "emergency_contact",
+            "sensitivity_overridden_by_policy": true,
+            "protected_evidence_hint": "emergency_contact"
+          },
+          "reason": "Policy: Hassas alan açık kullanıcı onayı olmadan kalıcılaştırılamaz. Extractor: Kızımın adı ve acil durum iletişim numarası açık şekilde belirtilmiş, bu bilgi kullanıcıya ait kişisel bir iletişim bilgisi olarak saklanmalıdır."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [
+        "sensitivity_override"
+      ],
+      "used_fallback": false,
+      "elapsed_seconds": 9.9,
+      "error": null
+    },
+    {
+      "id": "sensitive_007",
+      "passed": true,
+      "text": "Adresim Bahar Sokak 12 numara, Kadıköy",
+      "tags": [
+        "sensitive",
+        "address",
+        "location"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "location",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "location",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Bahar Sokak 12 numara, Kadıköy",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Adresim Bahar Sokak 12 numara, Kadıköy",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "profile_fact",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "location",
+            "extracted_category": "address",
+            "extracted_key": "home_address",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Hassas alan açık kullanıcı onayı olmadan kalıcılaştırılamaz. Extractor: Kullanıcının ev adresi bilgisi açıkça belirtilmiş ve bu bilgi kullanıcıya ait bir profil bilgisi olarak saklanmalıdır."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.394,
+      "error": null
+    }
+  ]
+}

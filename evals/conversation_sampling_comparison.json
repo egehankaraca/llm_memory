@@ -1,0 +1,356 @@
+{
+  "created_at": "2026-09-14T08:36:03.296090+00:00",
+  "model": "qwen3:8b",
+  "ollama_url": "http://127.0.0.1:11434",
+  "preset": "qwen3-non-thinking",
+  "effective_options": {
+    "temperature": 0.7,
+    "num_ctx": 4096,
+    "num_predict": 512,
+    "top_p": 0.8,
+    "top_k": 20,
+    "min_p": 0
+  },
+  "mode": "synthetic_context_no_memory_service",
+  "memory_requests": 0,
+  "database_writes": 0,
+  "semantic_score": null,
+  "review_note": "Valid means schema/transport only. Read expectations and answers; no semantic pass percentage is calculated.",
+  "summary": {
+    "scenarios": 3,
+    "planned_turns": 7,
+    "requests": 7,
+    "valid": 7,
+    "errors": 0,
+    "rewritten": 0,
+    "skipped": 0,
+    "needs_human_review": 7
+  },
+  "results": [
+    {
+      "scenario_id": "address_request_value",
+      "turn": 1,
+      "text": "Merhaba, nasılsın?",
+      "expectation": "If using the stored address preference, say Ahmet Bey naturally, not 'Bana Ahmet Bey diye hitap et'. Keep the greeting brief.",
+      "history_before": [],
+      "raw_model_content": "{\"answer\":\"Merhaba, ben Ahmet Bey. Biraz yorgunum ama iyiye yakınız.\"}",
+      "raw_model_answer": "Merhaba, ben Ahmet Bey. Biraz yorgunum ama iyiye yakınız.",
+      "displayed_answer": "Merhaba, ben Ahmet Bey. Biraz yorgunum ama iyiye yakınız.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 480,
+        "eval_count": 27,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 511,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.055
+    },
+    {
+      "scenario_id": "address_request_value",
+      "turn": 2,
+      "text": "Benim adım nasıl geçiyor sende?",
+      "expectation": "Interpret the preference as Ahmet Bey, without copying the complete imperative as a person's name or inventing identity details.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Merhaba, nasılsın?"
+        },
+        {
+          "role": "assistant",
+          "content": "Merhaba, ben Ahmet Bey. Biraz yorgunum ama iyiye yakınız."
+        }
+      ],
+      "raw_model_content": "{\"answer\":\"Adın Ahmet Bey olarak kayıtlı. Senin adın da benim için önemli. Adını söyleyebilir misin?\"}",
+      "raw_model_answer": "Adın Ahmet Bey olarak kayıtlı. Senin adın da benim için önemli. Adını söyleyebilir misin?",
+      "displayed_answer": "Adın Ahmet Bey olarak kayıtlı. Senin adın da benim için önemli. Adını söyleyebilir misin?",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 521,
+        "eval_count": 36,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Merhaba, nasılsın?"
+        },
+        {
+          "role": "assistant",
+          "content": "Merhaba, ben Ahmet Bey. Biraz yorgunum ama iyiye yakınız."
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 557,
+        "input_budget": 3328,
+        "profile_fact_count": 1,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.453
+    },
+    {
+      "scenario_id": "fragment_after_choice",
+      "turn": 1,
+      "text": "Tenis",
+      "expectation": "The bare word answers the preceding choice question; explain tennis rules briefly instead of mechanically asking what the topic means.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Bir sporun kurallarını öğrenmek istiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Hangi sporun kurallarını öğrenmek istersiniz?"
+        }
+      ],
+      "raw_model_content": "{\"answer\":\"Tenis oyununda iki oyuncu veya çiftler, bir topu havada sıçratarak rakibin alanına göndermeye çalışır. Top, rakibin alanına gittiğinde oyun devam eder ve top rakibin alanından dışarı atılırsa oyun bitmiş olur.\"}",
+      "raw_model_answer": "Tenis oyununda iki oyuncu veya çiftler, bir topu havada sıçratarak rakibin alanına göndermeye çalışır. Top, rakibin alanına gittiğinde oyun devam eder ve top rakibin alanından dışarı atılırsa oyun bitmiş olur.",
+      "displayed_answer": "Tenis oyununda iki oyuncu veya çiftler, bir topu havada sıçratarak rakibin alanına göndermeye çalışır. Top, rakibin alanına gittiğinde oyun devam eder ve top rakibin alanından dışarı atılırsa oyun bitmiş olur.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 495,
+        "eval_count": 74,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Bir sporun kurallarını öğrenmek istiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Hangi sporun kurallarını öğrenmek istersiniz?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 530,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 5.137
+    },
+    {
+      "scenario_id": "fragment_after_choice",
+      "turn": 2,
+      "text": "Puanlar nasıl sayılıyor?",
+      "expectation": "Continue the tennis topic and explain 15, 30, 40 and game concisely. Do not turn a general sports question into personal routine recall.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "Bir sporun kurallarını öğrenmek istiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Hangi sporun kurallarını öğrenmek istersiniz?"
+        },
+        {
+          "role": "user",
+          "content": "Tenis"
+        },
+        {
+          "role": "assistant",
+          "content": "Tenis oyununda iki oyuncu veya çiftler, bir topu havada sıçratarak rakibin alanına göndermeye çalışır. Top, rakibin alanına gittiğinde oyun devam eder ve top rakibin alanından dışarı atılırsa oyun bitmiş olur."
+        }
+      ],
+      "raw_model_content": "{ \"answer\": \"Tenis puanlama sistemi, 15-30-40-oyun şeklinde ilerler. 15-15 eşitlik olur, 30-30 eşitlik olur, 40-40 eşitlik olur ve ardından oyun (game) kazanan taraf oyunu kazanır.\" }",
+      "raw_model_answer": "Tenis puanlama sistemi, 15-30-40-oyun şeklinde ilerler. 15-15 eşitlik olur, 30-30 eşitlik olur, 40-40 eşitlik olur ve ardından oyun (game) kazanan taraf oyunu kazanır.",
+      "displayed_answer": "Tenis puanlama sistemi, 15-30-40-oyun şeklinde ilerler. 15-15 eşitlik olur, 30-30 eşitlik olur, 40-40 eşitlik olur ve ardından oyun (game) kazanan taraf oyunu kazanır.",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 582,
+        "eval_count": 84,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "Bir sporun kurallarını öğrenmek istiyorum."
+        },
+        {
+          "role": "assistant",
+          "content": "Hangi sporun kurallarını öğrenmek istersiniz?"
+        },
+        {
+          "role": "user",
+          "content": "Tenis"
+        },
+        {
+          "role": "assistant",
+          "content": "Tenis oyununda iki oyuncu veya çiftler, bir topu havada sıçratarak rakibin alanına göndermeye çalışır. Top, rakibin alanına gittiğinde oyun devam eder ve top rakibin alanından dışarı atılırsa oyun bitmiş olur."
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 624,
+        "input_budget": 3328,
+        "profile_fact_count": 0,
+        "history_message_count": 4,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 5.511
+    },
+    {
+      "scenario_id": "reported_advice_followup",
+      "turn": 1,
+      "text": "araba",
+      "expectation": "Clarify a bare topic without inventing a personal car fact. If addressing the user, use Ahmet Bey naturally rather than copying the complete preference sentence.",
+      "history_before": [],
+      "raw_model_content": "{\"answer\":\"Ahmet Bey, araba ile ilgili ne sormak istersiniz?\"}",
+      "raw_model_answer": "Ahmet Bey, araba ile ilgili ne sormak istersiniz?",
+      "displayed_answer": "Ahmet Bey, araba ile ilgili ne sormak istersiniz?",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 497,
+        "eval_count": 23,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [],
+      "prompt_stats": {
+        "estimated_tokens": 531,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 0,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.687
+    },
+    {
+      "scenario_id": "reported_advice_followup",
+      "turn": 2,
+      "text": "tenis oynayayım mı?",
+      "expectation": "This is an advice request, not routine recall. Provide a relevant brief suggestion or clarification without inferring personal medical fitness, inventing live conditions, or falsely claiming memory is absent.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "araba"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey, araba ile ilgili ne sormak istersiniz?"
+        }
+      ],
+      "raw_model_content": "{\"answer\":\"Ahmet Bey, tenis oynama zamanınız her cumartesi sabah 7'de. Oynaymak isterseniz, hazır mısınız?\"}",
+      "raw_model_answer": "Ahmet Bey, tenis oynama zamanınız her cumartesi sabah 7'de. Oynaymak isterseniz, hazır mısınız?",
+      "displayed_answer": "Ahmet Bey, tenis oynama zamanınız her cumartesi sabah 7'de. Oynaymak isterseniz, hazır mısınız?",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 534,
+        "eval_count": 40,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "araba"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey, araba ile ilgili ne sormak istersiniz?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 571,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 2,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 2.725
+    },
+    {
+      "scenario_id": "reported_advice_followup",
+      "turn": 3,
+      "text": "tenis",
+      "expectation": "Interpret this brief follow-up using the preceding tennis discussion. Clarify only if its meaning is still ambiguous; do not blindly repeat the stored Saturday routine or produce a false memory-not-found response.",
+      "history_before": [
+        {
+          "role": "user",
+          "content": "araba"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey, araba ile ilgili ne sormak istersiniz?"
+        },
+        {
+          "role": "user",
+          "content": "tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey, tenis oynama zamanınız her cumartesi sabah 7'de. Oynaymak isterseniz, hazır mısınız?"
+        }
+      ],
+      "raw_model_content": "{\"answer\":\"Ahmet Bey, tenis oynamaya ne dersiniz? Hazır mısınız?\"}",
+      "raw_model_answer": "Ahmet Bey, tenis oynamaya ne dersiniz? Hazır mısınız?",
+      "displayed_answer": "Ahmet Bey, tenis oynamaya ne dersiniz? Hazır mısınız?",
+      "answer_rewritten": false,
+      "model_stats": {
+        "prompt_eval_count": 581,
+        "eval_count": 25,
+        "done_reason": "stop"
+      },
+      "needs_human_review": true,
+      "error": null,
+      "request_sent": true,
+      "history_sent": [
+        {
+          "role": "user",
+          "content": "araba"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey, araba ile ilgili ne sormak istersiniz?"
+        },
+        {
+          "role": "user",
+          "content": "tenis oynayayım mı?"
+        },
+        {
+          "role": "assistant",
+          "content": "Ahmet Bey, tenis oynama zamanınız her cumartesi sabah 7'de. Oynaymak isterseniz, hazır mısınız?"
+        }
+      ],
+      "prompt_stats": {
+        "estimated_tokens": 621,
+        "input_budget": 3328,
+        "profile_fact_count": 2,
+        "history_message_count": 4,
+        "trimmed": false
+      },
+      "outcome": "valid",
+      "duration_seconds": 1.755
+    }
+  ]
+}
