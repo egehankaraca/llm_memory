@@ -3,17 +3,24 @@ from dataclasses import replace
 from typing import Any
 import json
 import os
+import time
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import models
 from database import get_db
-from memory_analyzer import MemoryDecision, analyze_message, get_analyzer_status
+from memory_analyzer import (
+    MemoryDecision,
+    analyze_message,
+    get_analyzer_status,
+    is_user_asserted_health_decision,
+    resolved_memory_scope,
+)
 from memory_analyzer import stable_statement_key
 from memory_consolidator import (
     ActiveMemory,
@@ -27,6 +34,12 @@ from memory_retriever import (
     estimate_tokens as estimate_profile_tokens,
     select_profile_memories,
 )
+from memory_embeddings import (
+    embedding_status,
+    enqueue_fact_embedding,
+    score_profile_memories_pgvector,
+)
+from profile_semantic import semantic_settings
 from memory_outbox import serialize_outbox_job
 from temporary_memory import (
     StaleTemporaryMemoryError,
@@ -36,7 +49,7 @@ from temporary_memory import (
 )
 
 
-app = FastAPI(title="LLM Memory Service API", version="0.12.0")
+app = FastAPI(title="LLM Memory Service API", version="0.14.0")
 
 
 DEFAULT_WINDOW_MAX_MESSAGES = 10
@@ -45,6 +58,8 @@ DEFAULT_CONVERSATION_TTL_HOURS = 24
 DEFAULT_CONSOLIDATION_MAX_FACTS = 50
 DEFAULT_PROFILE_MAX_FACTS = 20
 DEFAULT_PROFILE_MAX_TOKENS = 1_500
+DEFAULT_EPISODE_MAX_ITEMS = 10
+DEFAULT_EPISODE_MAX_TOKENS = 1_000
 DEFAULT_PINNED_PROFILE_CATEGORIES = (
     "communication,accessibility,emergency_contact"
 )
@@ -142,6 +157,23 @@ def profile_retrieval_settings() -> tuple[int, int, set[str]]:
             16_000,
         ),
         categories,
+    )
+
+
+def episode_retrieval_settings() -> tuple[int, int]:
+    return (
+        bounded_environment_integer(
+            "MEMORY_EPISODE_MAX_ITEMS",
+            DEFAULT_EPISODE_MAX_ITEMS,
+            1,
+            50,
+        ),
+        bounded_environment_integer(
+            "MEMORY_EPISODE_MAX_TOKENS",
+            DEFAULT_EPISODE_MAX_TOKENS,
+            128,
+            8_000,
+        ),
     )
 
 
@@ -258,7 +290,6 @@ class ContextRequest(BaseModel):
     user_id: str = Field(min_length=1, max_length=128)
     session_id: str = Field(min_length=1, max_length=128)
     query: str | None = Field(default=None, max_length=10_000)
-    include_unconfirmed_sensitive_history: bool = False
 
 
 class TemporaryMemoryCreate(FactCreate):
@@ -272,6 +303,19 @@ class TemporaryMemoryCreate(FactCreate):
     @classmethod
     def validate_occurred_at(cls, value: datetime) -> datetime:
         return require_aware_datetime(value)
+
+
+class EpisodeCreate(FactCreate):
+    session_id: str | None = Field(default=None, max_length=128)
+    occurred_at: datetime = Field(default_factory=utc_now)
+    retention_until: datetime | None = None
+
+    @field_validator("occurred_at", "retention_until")
+    @classmethod
+    def validate_episode_datetimes(
+        cls, value: datetime | None
+    ) -> datetime | None:
+        return require_aware_datetime(value) if value is not None else None
 
 
 class EventCreate(BaseModel):
@@ -330,10 +374,6 @@ class InteractionProcessRequest(BaseModel):
         return require_aware_datetime(value)
 
 
-class CandidateDecisionRequest(BaseModel):
-    user_id: str = Field(min_length=1, max_length=128)
-
-
 def serialize_fact(fact: models.MemoryFact) -> dict[str, Any]:
     return {
         "id": fact.id,
@@ -352,11 +392,43 @@ def serialize_fact(fact: models.MemoryFact) -> dict[str, Any]:
     }
 
 
+def serialize_episode(episode: models.MemoryEpisode) -> dict[str, Any]:
+    return {
+        "id": episode.id,
+        "scope": models.MemoryScope.EPISODE.value,
+        "category": episode.category,
+        "key": episode.key,
+        "value": episode.value_json.get("value"),
+        "sensitivity": episode.sensitivity.value,
+        "verification_status": episode.verification_status.value,
+        "confidence": float(episode.confidence),
+        "source_event_id": episode.source_event_id,
+        "session_id": episode.session_id,
+        "occurred_at": episode.occurred_at.isoformat(),
+        "retention_until": (
+            episode.retention_until.isoformat()
+            if episode.retention_until is not None
+            else None
+        ),
+    }
+
+
 def serialize_candidate(candidate: models.MemoryCandidate) -> dict[str, Any]:
+    candidate_scope = candidate.scope
+    if candidate_scope is None:
+        candidate_scope = (
+            models.MemoryScope.DISCARD
+            if candidate.memory_type == models.CandidateMemoryType.DISCARD
+            else models.MemoryScope.SESSION
+            if candidate.memory_type == models.CandidateMemoryType.SHORT_TERM
+            or candidate.expires_at is not None
+            else models.MemoryScope.PROFILE
+        )
     return {
         "candidate_id": candidate.id,
         "event_id": candidate.source_event_id,
         "memory_type": candidate.memory_type.value,
+        "scope": candidate_scope.value,
         "category": candidate.category,
         "key": candidate.key,
         "value": (
@@ -364,7 +436,6 @@ def serialize_candidate(candidate: models.MemoryCandidate) -> dict[str, Any]:
         ),
         "sensitivity": candidate.sensitivity.value,
         "confidence": float(candidate.confidence),
-        "requires_confirmation": candidate.requires_confirmation,
         "analyzer_source": candidate.analyzer_source,
         "analysis": candidate.analysis_json,
         "consolidation_action": candidate.consolidation_action,
@@ -403,6 +474,25 @@ def load_active_memories(
     return query.all()
 
 
+def load_active_episodes(
+    user_id: str,
+    db: Session,
+    *,
+    limit: int | None = None,
+) -> list[models.MemoryEpisode]:
+    now = utc_now()
+    query = db.query(models.MemoryEpisode).filter(
+        models.MemoryEpisode.user_id == user_id,
+        or_(
+            models.MemoryEpisode.retention_until.is_(None),
+            models.MemoryEpisode.retention_until > now,
+        ),
+    ).order_by(models.MemoryEpisode.occurred_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
+
+
 def active_memory_views(facts: list[models.MemoryFact]) -> list[ActiveMemory]:
     return [
         ActiveMemory(
@@ -433,7 +523,7 @@ def profile_memory_views(facts: list[models.MemoryFact]) -> list[ProfileMemory]:
 def existing_memories_for_analyzer(
     facts: list[models.MemoryFact],
 ) -> list[dict[str, Any]]:
-    protected = models.SENSITIVITIES_REQUIRING_CONFIRMATION
+    protected = models.PROTECTED_SENSITIVITIES
     return [
         {
             "id": fact.id,
@@ -556,7 +646,7 @@ def build_conversation_window(
     db: Session,
     *,
     exclude_message_id: str | None = None,
-    exclude_unconfirmed_sensitive: bool = False,
+    exclude_unprocessed_events: bool = False,
 ) -> dict[str, Any]:
     now = utc_now()
     max_messages, max_tokens = conversation_window_limits()
@@ -567,32 +657,7 @@ def build_conversation_window(
     )
     if exclude_message_id is not None:
         query = query.filter(models.ConversationMessage.id != exclude_message_id)
-    if exclude_unconfirmed_sensitive:
-        now = utc_now()
-        protected_events = (
-            db.query(models.MemoryCandidate.source_event_id)
-            .filter(
-                models.MemoryCandidate.user_id == user_id,
-                models.MemoryCandidate.sensitivity.in_(models.SENSITIVITIES_REQUIRING_CONFIRMATION),
-                or_(
-                    models.MemoryCandidate.status.in_([
-                        models.CandidateStatus.PENDING, models.CandidateStatus.REJECTED,
-                    ]),
-                    and_(
-                        models.MemoryCandidate.status == models.CandidateStatus.CONFIRMED,
-                        models.MemoryCandidate.expires_at.is_not(None),
-                        models.MemoryCandidate.expires_at <= now,
-                    ),
-                ),
-            )
-        )
-        query = query.filter(
-            ~models.ConversationMessage.id.in_(protected_events),
-            or_(
-                models.ConversationMessage.parent_message_id.is_(None),
-                ~models.ConversationMessage.parent_message_id.in_(protected_events),
-            ),
-        )
+    if exclude_unprocessed_events:
         # Asynchronous events have not passed sensitivity policy yet. Keep both
         # the raw user message and its linked assistant response out of future
         # model context until the worker completes the analysis.
@@ -859,9 +924,6 @@ def create_temporary_memory(
     assert_session_owner(memory.session_id, memory.user_id, db)
     if memory.expires_at <= utc_now():
         raise HTTPException(status_code=422, detail="Geçici memory expires_at gelecekte olmalıdır")
-    if (memory.sensitivity in models.SENSITIVITIES_REQUIRING_CONFIRMATION
-            and memory.verification_status == models.VerificationStatus.UNVERIFIED):
-        raise HTTPException(status_code=422, detail="Hassas bilgi interactions:process ve açık onay gerektirir")
     try:
         row = upsert_temporary_memory(
             db, user_id=memory.user_id, session_id=memory.session_id,
@@ -954,6 +1016,7 @@ def _write_memory_fact(
                 duplicate.status = models.FactStatus.SUPERSEDED
                 duplicate.valid_to = now
                 duplicate.updated_at = now
+            enqueue_fact_embedding(db, current)
             db.commit() if commit else db.flush()
             return {
                 "status": "unchanged",
@@ -982,6 +1045,10 @@ def _write_memory_fact(
             status=models.FactStatus.ACTIVE,
         )
         db.add(new_fact)
+        # The embedding job is committed atomically with the fact. The worker
+        # performs the expensive Ollama call after the request has returned.
+        db.flush()
+        enqueue_fact_embedding(db, new_fact)
         db.commit() if commit else db.flush()
         return {
             "status": "created",
@@ -994,6 +1061,42 @@ def _write_memory_fact(
             status_code=status.HTTP_409_CONFLICT,
             detail="Fact aynı anda başka bir istek tarafından güncellendi",
         ) from exc
+
+
+def _write_memory_episode(
+    episode: EpisodeCreate,
+    db: Session,
+    *,
+    commit: bool = True,
+) -> dict[str, Any]:
+    """Append one immutable episodic memory; episodes never supersede slots."""
+    row = models.MemoryEpisode(
+        id=str(uuid.uuid4()),
+        user_id=episode.user_id,
+        session_id=episode.session_id,
+        category=episode.category,
+        key=episode.key,
+        value_json={"value": episode.value},
+        sensitivity=episode.sensitivity,
+        verification_status=episode.verification_status,
+        confidence=episode.confidence,
+        source_event_id=episode.source_event_id,
+        occurred_at=episode.occurred_at,
+        retention_until=episode.retention_until,
+    )
+    db.add(row)
+    db.commit() if commit else db.flush()
+    return {"status": "created", "episode_id": row.id}
+
+
+@app.get("/v1/users/{user_id}/episodes")
+def list_memory_episodes(
+    user_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    rows = load_active_episodes(user_id, db, limit=limit)
+    return {"items": [serialize_episode(row) for row in rows]}
 
 
 @app.put("/v1/sessions/{session_id}/state")
@@ -1109,18 +1212,33 @@ def build_context(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Build a query-aware bounded context from profile and session memory."""
+    total_started = time.perf_counter()
     now = utc_now()
     assert_session_owner(request.session_id, request.user_id, db)
     active_facts = load_active_memories(request.user_id, db)
+    profile_load_finished = time.perf_counter()
+    profile_views = profile_memory_views(active_facts)
     max_facts, max_profile_tokens, pinned_categories = (
         profile_retrieval_settings()
     )
+    semantic_config = semantic_settings()
+    semantic_started = time.perf_counter()
+    semantic_result = score_profile_memories_pgvector(
+        db,
+        user_id=request.user_id,
+        query=request.query,
+        settings=semantic_config,
+    )
+    semantic_finished = time.perf_counter()
+    ranking_started = semantic_finished
     retrieval = select_profile_memories(
-        profile_memory_views(active_facts),
+        profile_views,
         query=request.query,
         max_facts=max_facts,
         max_tokens=max_profile_tokens,
         pinned_categories=pinned_categories,
+        semantic_scores=semantic_result.scores,
+        semantic_min_similarity=semantic_config.min_similarity,
         now=now,
     )
 
@@ -1174,6 +1292,35 @@ def build_context(
         selected=tuple(packed_selected),
         estimated_tokens=estimate_profile_tokens(profile_facts),
     )
+    ranking_finished = time.perf_counter()
+    assembly_started = ranking_finished
+
+    max_episode_items, max_episode_tokens = episode_retrieval_settings()
+    episode_rows = load_active_episodes(request.user_id, db)
+    episode_by_id = {episode.id: episode for episode in episode_rows}
+    episode_retrieval = select_profile_memories(
+        [
+            ProfileMemory(
+                id=episode.id,
+                category=episode.category,
+                key=episode.key,
+                value=episode.value_json.get("value"),
+                confidence=float(episode.confidence),
+                verification_status=episode.verification_status.value,
+                updated_at=episode.occurred_at,
+            )
+            for episode in episode_rows
+        ],
+        query=request.query,
+        max_facts=max_episode_items,
+        max_tokens=max_episode_tokens,
+        pinned_categories=set(),
+        now=now,
+    )
+    episodes = [
+        serialize_episode(episode_by_id[selected.memory.id])
+        for selected in episode_retrieval.selected
+    ]
 
     profile_data: dict[str, dict[str, Any]] = {}
     for selected in retrieval.selected:
@@ -1200,7 +1347,7 @@ def build_context(
         request.user_id,
         request.session_id,
         db,
-        exclude_unconfirmed_sensitive=not request.include_unconfirmed_sensitive_history,
+        exclude_unprocessed_events=True,
     )
     max_temporary_items, max_temporary_tokens = temporary_memory_limits()
     temporary_rows = load_temporary_memories(
@@ -1211,7 +1358,7 @@ def build_context(
     # Keep the old single-goal projection for older clients. New clients must
     # consume temporary_memories; this projection is never written back.
     latest_goal = next((row.value_json.get("value") for row in temporary_rows
-                        if row.sensitivity not in models.SENSITIVITIES_REQUIRING_CONFIRMATION), None)
+                        if row.sensitivity not in models.PROTECTED_SENSITIVITIES), None)
     if not isinstance(latest_goal, dict):
         latest_goal = {"description": latest_goal} if latest_goal is not None else None
     legacy_goal = session_data.get("active_goal") or {}
@@ -1226,12 +1373,19 @@ def build_context(
         models.TemporaryMemory.session_id == request.session_id,
     ).first() is not None
 
-    return {
+    response = {
         "as_of": now.isoformat(),
         "user_id": request.user_id,
         "session_id": request.session_id,
         "profile": profile_data,
         "profile_facts": profile_facts,
+        "episodes": episodes,
+        "episode_memory_budget": {
+            "max_items": max_episode_items,
+            "max_tokens": max_episode_tokens,
+            "selected_item_count": len(episodes),
+            "estimated_tokens": estimate_profile_tokens(episodes),
+        },
         "session": latest_goal if latest_goal is not None else {} if has_temporary_history else legacy_goal,
         "temporary_memories": temporary_items,
         "temporary_memory_budget": {
@@ -1252,12 +1406,14 @@ def build_context(
         "message_refs": [
             message["message_id"] for message in conversation_window["messages"]
         ],
-        "history_policy": {
-            "include_unconfirmed_sensitive_history": request.include_unconfirmed_sensitive_history,
-        },
         "profile_retrieval": {
-            "strategy": "deterministic_lexical_v1",
+            "strategy": (
+                "hybrid_lexical_alias_pgvector_v1"
+                if semantic_result.available and semantic_result.indexed_count > 0
+                else "hybrid_lexical_alias_v1"
+            ),
             "query_used": retrieval.query_used,
+            "alias_used": retrieval.alias_used,
             "eligible_fact_count": retrieval.eligible_fact_count,
             "candidate_fact_count": retrieval.candidate_fact_count,
             "selected_fact_count": len(retrieval.selected),
@@ -1266,6 +1422,20 @@ def build_context(
             "max_facts": retrieval.max_facts,
             "max_tokens": retrieval.max_tokens,
             "pinned_categories": sorted(pinned_categories),
+            "semantic": {
+                "enabled": semantic_result.enabled,
+                "available": semantic_result.available,
+                "provider": semantic_result.provider,
+                "model": semantic_result.model,
+                "backend": semantic_result.backend,
+                "indexed_count": semantic_result.indexed_count,
+                "candidate_count": semantic_result.candidate_count,
+                "selected_candidate_count": retrieval.semantic_candidate_count,
+                "min_similarity": semantic_config.min_similarity,
+                "query_embedding_ms": semantic_result.query_embedding_ms,
+                "vector_search_ms": semantic_result.vector_search_ms,
+                "fallback_reason": semantic_result.reason,
+            },
             "selected": [
                 {
                     "fact_id": selected.memory.id,
@@ -1280,8 +1450,41 @@ def build_context(
         },
         "memory_refs": [
             selected.memory.id for selected in retrieval.selected
-        ],
+        ] + [episode["id"] for episode in episodes],
+        "episode_refs": [episode["id"] for episode in episodes],
     }
+    finished = time.perf_counter()
+    response["timing"] = {
+        "total_ms": round((finished - total_started) * 1000, 3),
+        "profile_load_ms": round(
+            (profile_load_finished - total_started) * 1000,
+            3,
+        ),
+        "semantic_total_ms": round(
+            (semantic_finished - semantic_started) * 1000,
+            3,
+        ),
+        "query_embedding_ms": semantic_result.query_embedding_ms,
+        "vector_search_ms": semantic_result.vector_search_ms,
+        "profile_ranking_ms": round(
+            (ranking_finished - ranking_started) * 1000,
+            3,
+        ),
+        "context_assembly_ms": round(
+            (finished - assembly_started) * 1000,
+            3,
+        ),
+    }
+    return response
+
+
+@app.get("/v1/embeddings/status")
+def get_embedding_status(
+    user_id: str | None = Query(default=None, min_length=1, max_length=128),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Report durable embedding coverage and queue health."""
+    return embedding_status(db, user_id=user_id)
 
 
 @app.post(
@@ -1349,7 +1552,7 @@ def enqueue_interaction(
             interaction.session_id,
             db,
             exclude_message_id=interaction.event_id,
-            exclude_unconfirmed_sensitive=True,
+            exclude_unprocessed_events=True,
         )
         recent_messages = [
             {"role": message["role"], "content": message["content"]}
@@ -1453,7 +1656,8 @@ def process_interaction(
     interaction: InteractionProcessRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Classify a message and route it to short-, long-, or review memory."""
+    """Classify a message and route it to profile, episode, session, or discard."""
+    total_started = time.perf_counter()
     existing_event = db.get(models.MemoryEvent, interaction.event_id)
     if existing_event is not None and existing_event.user_id != interaction.user_id:
         raise HTTPException(
@@ -1485,12 +1689,20 @@ def process_interaction(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Event ID başka bir session interaction'ı tarafından kullanılıyor",
             )
+        finished = time.perf_counter()
         return {
             "status": "duplicate",
             "event_id": interaction.event_id,
             "decisions": [
                 serialize_candidate(candidate) for candidate in existing_candidates
             ],
+            "timing": {
+                "total_ms": round((finished - total_started) * 1000, 3),
+                "preparation_ms": None,
+                "analyzer_ms": None,
+                "memory_write_ms": None,
+                "duplicate": True,
+            },
         }
 
     if existing_event is not None:
@@ -1556,6 +1768,7 @@ def process_interaction(
         now=utc_now(), max_items=max_temporary_items, max_tokens=max_temporary_tokens,
     )
     analysis_context = build_memory_analysis_context(recent_messages)
+    analyzer_started = time.perf_counter()
     decisions = analyze_message(
         interaction.text,
         interaction.occurred_at,
@@ -1563,15 +1776,26 @@ def process_interaction(
         [*existing_memories_for_analyzer(active_facts_for_analysis),
          *existing_memories_for_analyzer(active_temporary_for_analysis)],
     )
+    analyzer_finished = time.perf_counter()
     candidates: list[models.MemoryCandidate] = []
 
     for index, decision in enumerate(decisions):
-        candidate_status = models.CandidateStatus.PENDING
+        decision_scope = resolved_memory_scope(decision)
+        blocked_secret = decision.sensitivity in {
+            models.Sensitivity.FINANCIAL,
+            models.Sensitivity.CREDENTIAL,
+        }
+        if blocked_secret:
+            decision_scope = models.MemoryScope.DISCARD
+        candidate_status = models.CandidateStatus.IGNORED
         applied_ref: str | None = None
         candidate_category = decision.category
         candidate_key = decision.key
         candidate_reason = decision.reason
         candidate_analysis = dict(decision.analysis_metadata or {})
+        if blocked_secret:
+            candidate_analysis["evidence_guard"] = "protected_secret_discarded"
+        candidate_analysis["scope"] = decision_scope.value
         candidate_analysis["analysis_context"] = {
             "strategy": "last_assistant_suffix_v1",
             "message_count": len(analysis_context),
@@ -1581,11 +1805,7 @@ def process_interaction(
 
         plan: ConsolidationPlan | None = None
         if (
-            decision.memory_type
-            in {
-                models.CandidateMemoryType.LONG_TERM,
-                models.CandidateMemoryType.SENSITIVE,
-            }
+            decision_scope == models.MemoryScope.PROFILE
             and decision.category is not None
             and decision.key is not None
             and decision.expires_at is None
@@ -1611,7 +1831,7 @@ def process_interaction(
                 # financial data, addresses, etc.) always remain exact.
                 ignore_terminal_sentence_punctuation=(
                     decision.sensitivity
-                    not in models.SENSITIVITIES_REQUIRING_CONFIRMATION
+                    not in models.PROTECTED_SENSITIVITIES
                     and canonical_category(decision.category)
                     in {"routine", "preference", "communication", "relationship"}
                 ),
@@ -1625,23 +1845,16 @@ def process_interaction(
                 f"{decision.reason} Consolidation: {plan.reason}"
             )[:500]
 
-        requires_confirmation = decision.requires_confirmation or (
-            decision.memory_type == models.CandidateMemoryType.SENSITIVE
-            or decision.sensitivity
-            in models.SENSITIVITIES_REQUIRING_CONFIRMATION
+        user_asserted_sensitive = (
+            decision.sensitivity
+            in {
+                models.Sensitivity.HEALTH,
+                models.Sensitivity.EMERGENCY_CONTACT,
+                models.Sensitivity.LOCATION,
+            }
+            and decision_scope != models.MemoryScope.DISCARD
         )
-        if (
-            plan is not None
-            and plan.action
-            == ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION
-        ):
-            requires_confirmation = True
-
-        if (
-            decision.memory_type == models.CandidateMemoryType.LONG_TERM
-            and not requires_confirmation
-            and decision.expires_at is None
-        ):
+        if decision_scope == models.MemoryScope.PROFILE:
             if (
                 plan is not None
                 and plan.action == ConsolidationAction.UNCHANGED
@@ -1656,7 +1869,11 @@ def process_interaction(
                         key=candidate_key or f"fact_{interaction.event_id}",
                         value=decision.value,
                         sensitivity=decision.sensitivity,
-                        verification_status=models.VerificationStatus.UNVERIFIED,
+                        verification_status=(
+                            models.VerificationStatus.USER_ASSERTED
+                            if user_asserted_sensitive
+                            else models.VerificationStatus.UNVERIFIED
+                        ),
                         confidence=decision.confidence,
                         source_event_id=interaction.event_id,
                         expires_at=decision.expires_at,
@@ -1666,12 +1883,30 @@ def process_interaction(
                 )
                 applied_ref = result["fact_id"]
             candidate_status = models.CandidateStatus.AUTO_APPLIED
-        elif (
-            (decision.memory_type == models.CandidateMemoryType.SHORT_TERM
-             or decision.expires_at is not None)
-            and not requires_confirmation
-            and decision.memory_type != models.CandidateMemoryType.DISCARD
-        ):
+        elif decision_scope == models.MemoryScope.EPISODE:
+            result = _write_memory_episode(
+                EpisodeCreate(
+                    user_id=interaction.user_id,
+                    session_id=interaction.session_id,
+                    category=candidate_category or "episode",
+                    key=candidate_key or f"episode_{interaction.event_id}",
+                    value=decision.value,
+                    sensitivity=decision.sensitivity,
+                    verification_status=(
+                        models.VerificationStatus.USER_ASSERTED
+                        if user_asserted_sensitive
+                        else models.VerificationStatus.UNVERIFIED
+                    ),
+                    confidence=decision.confidence,
+                    source_event_id=interaction.event_id,
+                    occurred_at=interaction.occurred_at,
+                ),
+                db,
+                commit=False,
+            )
+            applied_ref = result["episode_id"]
+            candidate_status = models.CandidateStatus.AUTO_APPLIED
+        elif decision_scope == models.MemoryScope.SESSION:
             if decision.expires_at is not None and require_aware_datetime(decision.expires_at) <= utc_now():
                 candidate_status = models.CandidateStatus.IGNORED
                 candidate_analysis["expired_at_ingestion"] = True
@@ -1681,20 +1916,25 @@ def process_interaction(
                     source_event_id=interaction.event_id,
                     source_text=interaction.text,
                     occurred_at=interaction.occurred_at,
+                    verification_status=(
+                        models.VerificationStatus.USER_ASSERTED
+                        if user_asserted_sensitive
+                        else models.VerificationStatus.UNVERIFIED
+                    ),
                 )
                 candidate_status = models.CandidateStatus.AUTO_APPLIED
                 applied_ref = result["memory_id"]
                 candidate_category = result["category"]
                 candidate_key = result["key"]
                 candidate_analysis["temporary_slot"] = result["_slot_resolution"]
-        elif decision.memory_type == models.CandidateMemoryType.DISCARD:
+        elif decision_scope == models.MemoryScope.DISCARD:
             candidate_status = models.CandidateStatus.IGNORED
 
-        candidate_analysis["storage_destination"] = (
-            "none" if decision.memory_type == models.CandidateMemoryType.DISCARD
-            else "temporary" if decision.expires_at is not None
-            or decision.memory_type == models.CandidateMemoryType.SHORT_TERM
-            else "profile"
+        candidate_analysis["storage_destination"] = decision_scope.value
+        candidate_analysis["verification_status"] = (
+            models.VerificationStatus.USER_ASSERTED.value
+            if user_asserted_sensitive
+            else models.VerificationStatus.UNVERIFIED.value
         )
 
         candidate = models.MemoryCandidate(
@@ -1704,14 +1944,14 @@ def process_interaction(
             source_event_id=interaction.event_id,
             decision_index=index,
             memory_type=decision.memory_type,
+            scope=decision_scope,
             category=candidate_category,
             key=candidate_key,
             value_json={"value": decision.value}
-            if decision.value is not None
+            if decision.value is not None and not blocked_secret
             else None,
             sensitivity=decision.sensitivity,
             confidence=decision.confidence,
-            requires_confirmation=requires_confirmation,
             analyzer_source=decision.analyzer_source,
             analysis_json=candidate_analysis,
             consolidation_action=consolidation_action,
@@ -1737,10 +1977,27 @@ def process_interaction(
             detail="Interaction aynı anda başka bir istek tarafından işlendi",
         ) from exc
 
+    finished = time.perf_counter()
     return {
         "status": "processed",
         "event_id": interaction.event_id,
         "decisions": [serialize_candidate(candidate) for candidate in candidates],
+        "timing": {
+            "total_ms": round((finished - total_started) * 1000, 3),
+            "preparation_ms": round(
+                (analyzer_started - total_started) * 1000,
+                3,
+            ),
+            "analyzer_ms": round(
+                (analyzer_finished - analyzer_started) * 1000,
+                3,
+            ),
+            "memory_write_ms": round(
+                (finished - analyzer_finished) * 1000,
+                3,
+            ),
+            "duplicate": False,
+        },
     }
 
 
@@ -1772,119 +2029,6 @@ def list_memory_candidates(
         "limit": limit,
         "offset": offset,
     }
-
-
-@app.post("/v1/candidates/{candidate_id}:confirm")
-def confirm_memory_candidate(
-    candidate_id: str,
-    request: CandidateDecisionRequest,
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    candidate = (
-        db.query(models.MemoryCandidate)
-        .filter(
-            models.MemoryCandidate.id == candidate_id,
-            models.MemoryCandidate.user_id == request.user_id,
-        )
-        .with_for_update()
-        .first()
-    )
-    if candidate is None:
-        raise HTTPException(status_code=404, detail="Memory candidate bulunamadı")
-    if candidate.status == models.CandidateStatus.CONFIRMED:
-        return serialize_candidate(candidate)
-    if candidate.status != models.CandidateStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Yalnızca pending candidate onaylanabilir",
-        )
-    if candidate.category is None or candidate.key is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Candidate kalıcı memory alanlarını içermiyor",
-        )
-
-    value = candidate.value_json.get("value") if candidate.value_json else None
-    if candidate.expires_at is not None:
-        expiry = stored_utc_datetime(candidate.expires_at)
-        if expiry <= utc_now():
-            raise HTTPException(status_code=422, detail="Süresi dolan memory onaylanamaz; yeni beyan gerekli")
-        if candidate.session_id is None:
-            raise HTTPException(status_code=422, detail="Geçici memory için session gerekli")
-        source = db.get(models.MemoryEvent, candidate.source_event_id)
-        result = apply_short_term_decision(
-            MemoryDecision(
-                memory_type=models.CandidateMemoryType.SHORT_TERM,
-                category=candidate.category, key=candidate.key, value=value,
-                sensitivity=candidate.sensitivity, confidence=float(candidate.confidence),
-                requires_confirmation=False, expires_at=expiry, reason="Açık kullanıcı onayı",
-                analyzer_source=candidate.analyzer_source,
-                analysis_metadata=dict(candidate.analysis_json or {}),
-            ),
-            request.user_id, candidate.session_id, db,
-            source_event_id=candidate.source_event_id,
-            source_text=(
-                source.payload_json.get("text")
-                if source is not None and isinstance(source.payload_json, dict)
-                else None
-            ),
-            occurred_at=stored_utc_datetime(source.occurred_at) if source is not None else utc_now(),
-            verification_status=models.VerificationStatus.USER_CONFIRMED,
-        )
-        applied_ref = result["memory_id"]
-        candidate.category = result["category"]
-        candidate.key = result["key"]
-        candidate.analysis_json = {
-            **(candidate.analysis_json or {}),
-            "temporary_slot": result["_slot_resolution"],
-        }
-    else:
-        fact_result = _write_memory_fact(
-            FactCreate(
-                user_id=request.user_id, category=candidate.category, key=candidate.key,
-                value=value, sensitivity=candidate.sensitivity,
-                verification_status=models.VerificationStatus.USER_CONFIRMED,
-                confidence=float(candidate.confidence), source_event_id=candidate.source_event_id,
-            ),
-            db, commit=False,
-        )
-        applied_ref = fact_result["fact_id"]
-    candidate.status = models.CandidateStatus.CONFIRMED
-    candidate.applied_ref = applied_ref
-    candidate.resolved_at = utc_now()
-    db.commit()
-    return serialize_candidate(candidate)
-
-
-@app.post("/v1/candidates/{candidate_id}:reject")
-def reject_memory_candidate(
-    candidate_id: str,
-    request: CandidateDecisionRequest,
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    candidate = (
-        db.query(models.MemoryCandidate)
-        .filter(
-            models.MemoryCandidate.id == candidate_id,
-            models.MemoryCandidate.user_id == request.user_id,
-        )
-        .with_for_update()
-        .first()
-    )
-    if candidate is None:
-        raise HTTPException(status_code=404, detail="Memory candidate bulunamadı")
-    if candidate.status == models.CandidateStatus.REJECTED:
-        return serialize_candidate(candidate)
-    if candidate.status != models.CandidateStatus.PENDING:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Yalnızca pending candidate reddedilebilir",
-        )
-
-    candidate.status = models.CandidateStatus.REJECTED
-    candidate.resolved_at = utc_now()
-    db.commit()
-    return serialize_candidate(candidate)
 
 
 @app.get("/v1/users/{user_id}/memories")
@@ -1940,6 +2084,27 @@ def delete_memory(
     if fact is None:
         raise HTTPException(status_code=404, detail="Memory bulunamadı")
     db.delete(fact)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/v1/episodes/{episode_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_memory_episode(
+    episode_id: str,
+    user_id: str = Query(min_length=1, max_length=128),
+    db: Session = Depends(get_db),
+) -> Response:
+    episode = (
+        db.query(models.MemoryEpisode)
+        .filter(
+            models.MemoryEpisode.id == episode_id,
+            models.MemoryEpisode.user_id == user_id,
+        )
+        .first()
+    )
+    if episode is None:
+        raise HTTPException(status_code=404, detail="Episode bulunamadı")
+    db.delete(episode)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import main
+import memory_analyzer
 import models
 
 
@@ -34,6 +35,12 @@ class MemoryServiceTest(unittest.TestCase):
         models.Base.metadata.drop_all(self.engine)
         self.engine.dispose()
         self.environment.stop()
+
+    def test_confirmation_api_and_candidate_field_are_removed(self) -> None:
+        paths = main.app.openapi()["paths"]
+        self.assertNotIn("/v1/candidates/{candidate_id}:confirm", paths)
+        self.assertNotIn("/v1/candidates/{candidate_id}:reject", paths)
+        self.assertFalse(hasattr(models.MemoryCandidate, "requires_confirmation"))
 
     def test_fact_update_supersedes_old_value(self) -> None:
         first = main.create_memory_fact(
@@ -194,7 +201,7 @@ class MemoryServiceTest(unittest.TestCase):
         self.assertEqual(self.db.get(models.MemoryFact, created["fact_id"]).source_event_id,
                          "other-owner-event")
 
-    def test_attributed_context_does_not_expand_pending_or_raw_source_information(self) -> None:
+    def test_attributed_context_auto_applies_without_expanding_raw_source_information(self) -> None:
         raw_text = "Her sabah kahve içerim. Tansiyon ilacım değişti."
         main.create_memory_event(
             main.EventCreate(
@@ -215,14 +222,14 @@ class MemoryServiceTest(unittest.TestCase):
             ),
             self.db,
         )
-        pending = main.MemoryDecision(
+        sensitive = main.MemoryDecision(
             memory_type=models.CandidateMemoryType.SENSITIVE,
             category="health", key="medication_change", value="Tansiyon ilacım değişti.",
             sensitivity=models.Sensitivity.HEALTH, confidence=0.95,
-            requires_confirmation=True, expires_at=None,
-            reason="Hassas bilgi onay beklemeli.", analyzer_source="ollama",
+            expires_at=None,
+            reason="Açık sağlık beyanı.", analyzer_source="ollama",
         )
-        with patch.object(main, "analyze_message", return_value=[pending]):
+        with patch.object(main, "analyze_message", return_value=[sensitive]):
             result = main.process_interaction(
                 main.InteractionProcessRequest(
                     event_id="mixed-source", user_id="mixed-user",
@@ -230,18 +237,23 @@ class MemoryServiceTest(unittest.TestCase):
                 ),
                 self.db,
             )
-        self.assertEqual(result["decisions"][0]["status"], "pending")
+        self.assertEqual(result["decisions"][0]["status"], "auto_applied")
         context = main.build_context(
             main.ContextRequest(user_id="mixed-user", session_id="mixed-fresh-session"),
             self.db,
         )
         self.assertEqual(context["recent_messages"], [])
-        self.assertEqual(len(context["profile_facts"]), 1)
-        self.assertEqual(context["profile_facts"][0]["provenance"]["source_event_id"],
-                         "mixed-source")
-        self.assertNotIn("Tansiyon", json.dumps(context["profile_facts"], ensure_ascii=False))
-        self.assertNotIn("source_quote", context["profile_facts"][0]["provenance"])
-        self.assertEqual(context["profile"], {"habit": {"coffee": "Her sabah kahve içerim."}})
+        self.assertEqual(len(context["profile_facts"]), 2)
+        self.assertTrue(all(
+            fact["provenance"]["source_event_id"] == "mixed-source"
+            for fact in context["profile_facts"]
+        ))
+        self.assertTrue(all(
+            "source_quote" not in fact["provenance"]
+            for fact in context["profile_facts"]
+        ))
+        self.assertEqual(context["profile"]["habit"]["coffee"], "Her sabah kahve içerim.")
+        self.assertEqual(context["profile"]["health"]["medication_change"], "Tansiyon ilacım değişti.")
 
     def test_attributed_profile_budget_includes_wrappers_and_keeps_views_aligned(self) -> None:
         created = []
@@ -546,7 +558,7 @@ class MemoryServiceTest(unittest.TestCase):
             value=None,
             sensitivity=models.Sensitivity.NORMAL,
             confidence=0.9,
-            requires_confirmation=False,
+
             expires_at=None,
             reason="test",
         )
@@ -596,7 +608,11 @@ class MemoryServiceTest(unittest.TestCase):
         self.assertEqual(first["decisions"][0]["memory_type"], "short_term")
         self.assertEqual(first["decisions"][0]["status"], "auto_applied")
         self.assertEqual(first["decisions"][0]["analyzer_source"], "rules")
+        self.assertGreaterEqual(first["timing"]["total_ms"], 0)
+        self.assertGreaterEqual(first["timing"]["analyzer_ms"], 0)
+        self.assertGreaterEqual(first["timing"]["memory_write_ms"], 0)
         self.assertEqual(second["status"], "duplicate")
+        self.assertTrue(second["timing"]["duplicate"])
         self.assertEqual(self.db.query(models.MemoryEvent).count(), 1)
         self.assertEqual(self.db.query(models.MemoryCandidate).count(), 1)
 
@@ -607,6 +623,9 @@ class MemoryServiceTest(unittest.TestCase):
             ),
             self.db,
         )
+        self.assertGreaterEqual(context["timing"]["total_ms"], 0)
+        self.assertGreaterEqual(context["timing"]["profile_load_ms"], 0)
+        self.assertGreaterEqual(context["timing"]["profile_ranking_ms"], 0)
         self.assertEqual(context["session"]["type"], "outing")
 
     def test_interaction_auto_applies_explicit_long_term_preference(self) -> None:
@@ -656,7 +675,7 @@ class MemoryServiceTest(unittest.TestCase):
             value="Sabah saat 8'de kalkıyorum",
             sensitivity=models.Sensitivity.NORMAL,
             confidence=0.95,
-            requires_confirmation=False,
+
             expires_at=None,
             reason="Kullanıcı rutinini güncelledi.",
             analyzer_source="ollama",
@@ -684,7 +703,7 @@ class MemoryServiceTest(unittest.TestCase):
         self.assertEqual(new_fact.status, models.FactStatus.ACTIVE)
         self.assertEqual(new_fact.key, "morning_wake_up_time")
 
-    def test_ambiguous_memory_conflict_waits_for_confirmation(self) -> None:
+    def test_new_explicit_memory_value_supersedes_without_confirmation(self) -> None:
         existing = main.create_memory_fact(
             main.FactCreate(
                 user_id="ahmet-001",
@@ -701,7 +720,7 @@ class MemoryServiceTest(unittest.TestCase):
             value="Sabah saat 8'de kalkıyorum",
             sensitivity=models.Sensitivity.NORMAL,
             confidence=0.9,
-            requires_confirmation=False,
+
             expires_at=None,
             reason="Aynı rutin için farklı saat çıkarıldı.",
             analyzer_source="ollama",
@@ -721,23 +740,14 @@ class MemoryServiceTest(unittest.TestCase):
         candidate = result["decisions"][0]
         self.assertEqual(
             candidate["consolidation_action"],
-            "conflict_requires_confirmation",
+            "supersede",
         )
-        self.assertEqual(candidate["status"], "pending")
-        self.assertTrue(candidate["requires_confirmation"])
-        self.assertEqual(self.db.query(models.MemoryFact).count(), 1)
-
-        confirmed = main.confirm_memory_candidate(
-            candidate["candidate_id"],
-            main.CandidateDecisionRequest(user_id="ahmet-001"),
-            self.db,
-        )
-        self.assertEqual(confirmed["status"], "confirmed")
+        self.assertEqual(candidate["status"], "auto_applied")
         old_fact = self.db.get(models.MemoryFact, existing["fact_id"])
         self.assertEqual(old_fact.status, models.FactStatus.SUPERSEDED)
         self.assertEqual(self.db.query(models.MemoryFact).count(), 2)
 
-    def test_sensitive_interaction_waits_for_confirmation(self) -> None:
+    def test_sensitive_interaction_auto_applies(self) -> None:
         processed = main.process_interaction(
             main.InteractionProcessRequest(
                 event_id="interaction-sensitive-001",
@@ -750,19 +760,202 @@ class MemoryServiceTest(unittest.TestCase):
         decision = processed["decisions"][0]
 
         self.assertEqual(decision["memory_type"], "sensitive")
-        self.assertEqual(decision["status"], "pending")
-        self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
-
-        confirmed = main.confirm_memory_candidate(
-            decision["candidate_id"],
-            main.CandidateDecisionRequest(user_id="ahmet-001"),
-            self.db,
-        )
-        self.assertEqual(confirmed["status"], "confirmed")
-        self.assertIsNotNone(confirmed["applied_ref"])
+        self.assertEqual(decision["status"], "auto_applied")
+        self.assertIsNotNone(decision["applied_ref"])
         self.assertEqual(self.db.query(models.MemoryFact).count(), 1)
 
-    def test_service_policy_blocks_unconfirmed_sensitive_long_term(self) -> None:
+    def test_direct_user_health_assertion_auto_applies_as_user_asserted(self) -> None:
+        text = "Tansiyon ilacımı sabah kahvaltıdan sonra alıyorum."
+        decision = main.MemoryDecision(
+            memory_type=models.CandidateMemoryType.SENSITIVE,
+            category="medication",
+            key="blood_pressure_medication_schedule",
+            value=text,
+            sensitivity=models.Sensitivity.HEALTH,
+            confidence=0.95,
+
+            expires_at=None,
+            reason="Direct health assertion",
+            analyzer_source="ollama",
+            analysis_metadata={
+                "health_persistence_policy": memory_analyzer.HEALTH_ASSERTION_POLICY,
+                "verification_status": models.VerificationStatus.USER_ASSERTED.value,
+                "claim_kind": "assertion",
+                "subject": "user",
+                "should_store": True,
+                "speech_act": "habit",
+                "evidence_text": text,
+            },
+        )
+        with patch.object(main, "analyze_message", return_value=[decision]):
+            result = main.process_interaction(
+                main.InteractionProcessRequest(
+                    event_id="health-user-asserted-001",
+                    user_id="ahmet-001",
+                    session_id="health-user-asserted-session",
+                    text=text,
+                ),
+                self.db,
+            )
+
+        candidate = result["decisions"][0]
+        self.assertEqual(candidate["memory_type"], "sensitive")
+        self.assertEqual(candidate["status"], "auto_applied")
+        self.assertEqual(candidate["analysis"]["verification_status"], "user_asserted")
+        fact = self.db.query(models.MemoryFact).one()
+        self.assertEqual(fact.sensitivity, models.Sensitivity.HEALTH)
+        self.assertEqual(
+            fact.verification_status,
+            models.VerificationStatus.USER_ASSERTED,
+        )
+
+    def test_conflicting_user_asserted_health_change_supersedes(self) -> None:
+        def health_decision(value: str) -> main.MemoryDecision:
+            return main.MemoryDecision(
+                memory_type=models.CandidateMemoryType.SENSITIVE,
+                category="medication",
+                key="blood_pressure_medication_schedule",
+                value=value,
+                sensitivity=models.Sensitivity.HEALTH,
+                confidence=0.95,
+
+                expires_at=None,
+                reason="Direct health assertion",
+                analyzer_source="ollama",
+                analysis_metadata={
+                    "health_persistence_policy": memory_analyzer.HEALTH_ASSERTION_POLICY,
+                    "verification_status": models.VerificationStatus.USER_ASSERTED.value,
+                    "claim_kind": "assertion",
+                    "subject": "user",
+                    "should_store": True,
+                    "speech_act": "habit",
+                    "evidence_text": value,
+                },
+            )
+
+        first_text = "Tansiyon ilacımı kahvaltıdan sonra alıyorum."
+        second_text = "Tansiyon ilacımı akşam alıyorum."
+        for event_id, text in [
+            ("health-conflict-base", first_text),
+            ("health-conflict-change", second_text),
+        ]:
+            with patch.object(main, "analyze_message", return_value=[health_decision(text)]):
+                result = main.process_interaction(
+                    main.InteractionProcessRequest(
+                        event_id=event_id,
+                        user_id="ahmet-001",
+                        session_id="health-conflict-session",
+                        text=text,
+                    ),
+                    self.db,
+                )
+
+        candidate = result["decisions"][0]
+        self.assertEqual(candidate["status"], "auto_applied")
+        self.assertEqual(
+            candidate["consolidation_action"],
+            "supersede",
+        )
+        self.assertEqual(self.db.query(models.MemoryFact).count(), 2)
+
+    def test_explicit_medication_correction_supersedes_and_keeps_history(self) -> None:
+        original = main.create_memory_fact(
+            main.FactCreate(
+                user_id="ahmet-001",
+                category="medication",
+                key="morning_medication_time",
+                value="Tansiyon ilacımı her sabah saat 8'de alırım",
+                sensitivity=models.Sensitivity.HEALTH,
+                verification_status=models.VerificationStatus.USER_ASSERTED,
+                confidence=0.95,
+            ),
+            self.db,
+        )
+        text = "Artık tansiyon ilacımı her sabah saat 9'da alıyorum"
+        decision = main.MemoryDecision(
+            memory_type=models.CandidateMemoryType.SENSITIVE,
+            category="medication",
+            key="morning_medication_time",
+            value=text,
+            sensitivity=models.Sensitivity.HEALTH,
+            confidence=0.95,
+
+            expires_at=None,
+            reason="Explicit user medication schedule correction",
+            analyzer_source="ollama",
+            analysis_metadata={
+                "health_persistence_policy": memory_analyzer.HEALTH_ASSERTION_POLICY,
+                "verification_status": models.VerificationStatus.USER_ASSERTED.value,
+                "claim_kind": "assertion",
+                "subject": "user",
+                "should_store": True,
+                "speech_act": "habit",
+                "evidence_text": text,
+                "relation_to_existing": "update",
+            },
+        )
+
+        with patch.object(main, "analyze_message", return_value=[decision]):
+            result = main.process_interaction(
+                main.InteractionProcessRequest(
+                    event_id="health-explicit-correction",
+                    user_id="ahmet-001",
+                    session_id="health-correction-session",
+                    text=text,
+                ),
+                self.db,
+            )
+
+        candidate = result["decisions"][0]
+        self.assertEqual(candidate["status"], "auto_applied")
+        self.assertEqual(candidate["consolidation_action"], "supersede")
+        old_fact = self.db.get(models.MemoryFact, original["fact_id"])
+        new_fact = self.db.get(models.MemoryFact, candidate["applied_ref"])
+        self.assertEqual(old_fact.status, models.FactStatus.SUPERSEDED)
+        self.assertIsNotNone(old_fact.valid_to)
+        self.assertEqual(new_fact.status, models.FactStatus.ACTIVE)
+        self.assertEqual(new_fact.supersedes_id, old_fact.id)
+        self.assertEqual(
+            new_fact.verification_status,
+            models.VerificationStatus.USER_ASSERTED,
+        )
+
+    def test_low_confidence_explicit_health_assertion_auto_applies(self) -> None:
+        text = "Tansiyon ilacımı sabah alıyorum."
+        decision = main.MemoryDecision(
+            memory_type=models.CandidateMemoryType.SENSITIVE,
+            category="medication",
+            key="blood_pressure_medication_schedule",
+            value=text,
+            sensitivity=models.Sensitivity.HEALTH,
+            confidence=0.50,
+
+            expires_at=None,
+            reason="Low confidence",
+            analyzer_source="ollama",
+            analysis_metadata={
+                "health_persistence_policy": memory_analyzer.HEALTH_ASSERTION_POLICY,
+                "verification_status": models.VerificationStatus.USER_ASSERTED.value,
+                "claim_kind": "assertion",
+                "subject": "user",
+                "should_store": True,
+            },
+        )
+        with patch.object(main, "analyze_message", return_value=[decision]):
+            result = main.process_interaction(
+                main.InteractionProcessRequest(
+                    event_id="health-low-confidence",
+                    user_id="ahmet-001",
+                    session_id="health-low-confidence-session",
+                    text=text,
+                ),
+                self.db,
+            )
+
+        self.assertEqual(result["decisions"][0]["status"], "auto_applied")
+        self.assertEqual(self.db.query(models.MemoryFact).count(), 1)
+
+    def test_service_policy_auto_applies_explicit_sensitive_long_term(self) -> None:
         unsafe_decision = main.MemoryDecision(
             memory_type=models.CandidateMemoryType.LONG_TERM,
             category="health",
@@ -770,7 +963,7 @@ class MemoryServiceTest(unittest.TestCase):
             value="kalp rahatsızlığı",
             sensitivity=models.Sensitivity.HEALTH,
             confidence=0.95,
-            requires_confirmation=False,
+
             expires_at=None,
             reason="Model hassas veriyi yanlışlıkla otomatik seçti.",
             analyzer_source="ollama",
@@ -786,9 +979,8 @@ class MemoryServiceTest(unittest.TestCase):
                 self.db,
             )
 
-        self.assertEqual(result["decisions"][0]["status"], "pending")
-        self.assertTrue(result["decisions"][0]["requires_confirmation"])
-        self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
+        self.assertEqual(result["decisions"][0]["status"], "auto_applied")
+        self.assertEqual(self.db.query(models.MemoryFact).count(), 1)
 
     def test_memories_can_be_listed_and_deleted(self) -> None:
         created = main.create_memory_fact(
@@ -816,6 +1008,33 @@ class MemoryServiceTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
+
+    def test_episodes_can_be_listed_and_owner_deleted(self) -> None:
+        created = main._write_memory_episode(
+            main.EpisodeCreate(
+                user_id="ahmet-001",
+                session_id="episode-session",
+                category="procedure",
+                key="hip_surgery",
+                value="Geçen yıl kalça ameliyatı oldum",
+            ),
+            self.db,
+        )
+        listed = main.list_memory_episodes("ahmet-001", limit=20, db=self.db)
+        self.assertEqual(len(listed["items"]), 1)
+        self.assertEqual(listed["items"][0]["scope"], "episode")
+
+        with self.assertRaises(HTTPException) as error:
+            main.delete_memory_episode(
+                created["episode_id"], user_id="other-user", db=self.db
+            )
+        self.assertEqual(error.exception.status_code, 404)
+
+        response = main.delete_memory_episode(
+            created["episode_id"], user_id="ahmet-001", db=self.db
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.db.query(models.MemoryEpisode).count(), 0)
 
 
 if __name__ == "__main__":

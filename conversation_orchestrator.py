@@ -13,6 +13,8 @@ from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 import uuid
 
+from emergency_orchestrator import EmergencyAction, evaluate_emergency
+
 
 SYSTEM_PROMPT = """You are a polite Turkish-speaking home companion for an elderly person. Use siz and answer the user's last message in one to three short sentences.
 When the user states a personal fact or plan, acknowledge only its stated meaning, preserving the subject and relationships. Do not turn a statement into advice, approval or an extra question. Answer actual questions directly; ask clarification only if essential. Distinguish recall from advice: background facts are optional supporting evidence, not an answer by themselves. Do not append a question to an already complete answer.
@@ -65,7 +67,7 @@ class OrchestratorSettings:
     num_ctx: int = 4096
     num_predict: int = 512
     keep_alive: str = "5m"
-    async_memory_ingestion: bool = False
+    async_memory_ingestion: bool = True
 
     @property
     def generation_options(self) -> dict[str, Any]:
@@ -118,7 +120,7 @@ class OrchestratorSettings:
             keep_alive=os.getenv("CHAT_OLLAMA_KEEP_ALIVE", os.getenv("OLLAMA_KEEP_ALIVE", "5m")),
             async_memory_ingestion=environment_boolean(
                 "MEMORY_ASYNC_INGESTION",
-                False,
+                True,
             ),
         )
 
@@ -414,11 +416,7 @@ class ChatTurn:
     model_stats: dict[str, Any]
     interaction: dict[str, Any] | None = None
     decisions: list[dict[str, Any]] = field(default_factory=list)
-
-    @property
-    def pending_candidates(self) -> list[dict[str, Any]]:
-        return [decision for decision in self.decisions if decision.get("status") == "pending"]
-
+    emergency_action: EmergencyAction | None = None
 
 class ConversationOrchestrator:
     def __init__(
@@ -445,6 +443,7 @@ class ConversationOrchestrator:
             settings.ollama_url, settings.ollama_timeout_seconds
         )
         self.pending_turn: ChatTurn | None = None
+        self.emergency_action_started = False
 
     @property
     def session_path(self) -> str:
@@ -480,27 +479,44 @@ class ConversationOrchestrator:
         context = self.context(text)
         prompt = build_chat_prompt(context, text, self.settings,
                                    user_id=self.user_id, session_id=self.session_id)
-        response = self.ollama.request("POST", "/api/chat", {
-            "model": self.settings.model,
-            "messages": prompt.messages,
-            "stream": False,
-            "think": False,
-            "keep_alive": self.settings.keep_alive,
-            "options": self.settings.generation_options,
-        })
-        message = response.get("message")
-        if (
-            not isinstance(message, dict)
-            or message.get("role", "assistant") != "assistant"
-            or response.get("done") is False
-        ):
-            raise OrchestratorError(
-                "Ollama tamamlanmış bir assistant cevabı döndürmedi; mesaj kaydedilmedi."
-            )
-        reply = message.get("content")
-        if not isinstance(reply, str) or not reply.strip():
-            raise OrchestratorError("Ollama cevabı boş veya çok uzun; mesaj kaydedilmedi.")
-        reply = parse_reply(reply)
+        emergency_action = evaluate_emergency(
+            text,
+            context,
+            action_already_started=self.emergency_action_started,
+        )
+        if emergency_action is not None:
+            reply = emergency_action.reply
+            response = {
+                "prompt_eval_count": None,
+                "eval_count": None,
+                "done_reason": "emergency_orchestrator",
+            }
+            if emergency_action.action != "already_active":
+                self.emergency_action_started = True
+            response_mode = "emergency_orchestrator"
+        else:
+            response = self.ollama.request("POST", "/api/chat", {
+                "model": self.settings.model,
+                "messages": prompt.messages,
+                "stream": False,
+                "think": False,
+                "keep_alive": self.settings.keep_alive,
+                "options": self.settings.generation_options,
+            })
+            message = response.get("message")
+            if (
+                not isinstance(message, dict)
+                or message.get("role", "assistant") != "assistant"
+                or response.get("done") is False
+            ):
+                raise OrchestratorError(
+                    "Ollama tamamlanmış bir assistant cevabı döndürmedi; mesaj kaydedilmedi."
+                )
+            reply = message.get("content")
+            if not isinstance(reply, str) or not reply.strip():
+                raise OrchestratorError("Ollama cevabı boş veya çok uzun; mesaj kaydedilmedi.")
+            reply = parse_reply(reply)
+            response_mode = "native_ollama_chat"
         self.pending_turn = ChatTurn(
             event_id=str(uuid.uuid4()),
             assistant_message_id=str(uuid.uuid4()),
@@ -510,9 +526,10 @@ class ConversationOrchestrator:
             assistant_occurred_at=datetime.now(timezone.utc).isoformat(),
             context=context,
             prompt=prompt,
+            emergency_action=emergency_action,
             model_stats={
                 **{key: response.get(key) for key in ("prompt_eval_count", "eval_count", "done_reason")},
-                "response_mode": "native_ollama_chat",
+                "response_mode": response_mode,
             },
         )
         return self.retry_pending()
@@ -564,27 +581,12 @@ class ConversationOrchestrator:
         self.pending_turn = None
         return turn
 
-    def pending_candidates(self) -> list[dict[str, Any]]:
-        query = urllib_parse.urlencode({"user_id": self.user_id, "status": "pending", "limit": 200})
-        return self.memory.request("GET", f"/v1/candidates?{query}")["items"]
-
     def interaction_status(self, event_id: str) -> dict[str, Any]:
         if not event_id.strip():
             raise OrchestratorError("Event ID gerekli.")
         event = urllib_parse.quote(event_id, safe="")
         query = urllib_parse.urlencode({"user_id": self.user_id})
         return self.memory.request("GET", f"/v1/interactions/{event}/status?{query}")
-
-    def resolve_candidate(self, candidate_id: str, *, confirm: bool) -> dict[str, Any]:
-        if self.pending_turn is not None:
-            raise OrchestratorError("Önce /retry ile eksik sohbet kaydını tamamlayın.")
-        if not candidate_id.strip():
-            raise OrchestratorError("Candidate ID gerekli. /pending ile listeleyin.")
-        action = "confirm" if confirm else "reject"
-        return self.memory.request(
-            "POST", f"/v1/candidates/{urllib_parse.quote(candidate_id, safe='')}:{action}",
-            {"user_id": self.user_id},
-        )
 
     def memories(self) -> dict[str, Any]:
         user = urllib_parse.quote(self.user_id, safe="")

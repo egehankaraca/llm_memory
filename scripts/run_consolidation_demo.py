@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise create, supersede, conflict, and confirmation through the live API."""
+"""Exercise create and automatic supersession through the live API."""
 
 from __future__ import annotations
 
@@ -64,7 +64,6 @@ def print_step(title: str, decision: dict[str, object]) -> None:
                 "value": decision["value"],
                 "consolidation_action": decision["consolidation_action"],
                 "consolidates_fact_id": decision["consolidates_fact_id"],
-                "requires_confirmation": decision["requires_confirmation"],
                 "status": decision["status"],
                 "applied_ref": decision["applied_ref"],
             },
@@ -106,25 +105,15 @@ def main() -> int:
     assert updated["consolidation_action"] == "supersede"
     assert updated["status"] == "auto_applied"
 
-    conflict = process(
+    latest = process(
         args.base_url,
         user_id,
         session_id,
         "Sabahları saat 9’da kalkıyorum",
     )
-    print_step("3. AMBIGUOUS CONFLICT", conflict)
-    assert conflict["consolidation_action"] == "conflict_requires_confirmation"
-    assert conflict["status"] == "pending"
-    assert conflict["requires_confirmation"] is True
-
-    confirmed = request_json(
-        args.base_url,
-        "POST",
-        f"/v1/candidates/{conflict['candidate_id']}:confirm",
-        {"user_id": user_id},
-    )
-    print_step("4. USER CONFIRMATION", confirmed)
-    assert confirmed["status"] == "confirmed"
+    print_step("3. LATEST EXPLICIT VALUE", latest)
+    assert latest["consolidation_action"] == "supersede"
+    assert latest["status"] == "auto_applied"
 
     encoded_user = urllib_parse.quote(user_id, safe="")
     history = request_json(

@@ -117,6 +117,24 @@ def numeric_atoms(text: str) -> set[int]:
     return atoms
 
 
+MEDICATION_DOSE_AMOUNT = re.compile(
+    r"\b(?:\d+(?:[.,]\d+)?|bir|iki|uc|dort|bes|alti|yedi|sekiz|dokuz|on|"
+    r"yarim|ceyrek|one|two|three|four|five|half|quarter)\s*"
+    r"(?:mg|mcg|mikrogram|gr|gram|ml|mililitre|unit|units|unite|"
+    r"tablet(?:i)?|hap(?:i)?|kapsul(?:u)?|tane|adet|damla|olcek)\b"
+)
+
+
+def has_medication_dose_amount(text: str) -> bool:
+    """Detect an explicit dose amount without treating a clock as a dose.
+
+    A bare number is intentionally insufficient: in a medication routine,
+    ``saat 8`` is schedule evidence, while ``iki tablet`` or ``5 mg`` is a dose
+    amount that stays behind the review gate.
+    """
+    return MEDICATION_DOSE_AMOUNT.search(normalize(text)) is not None
+
+
 def protected_domain_hint(text: str) -> str | None:
     """Bounded DLP hints for explicit protected data; not semantic coverage."""
     normalized = normalize(text)

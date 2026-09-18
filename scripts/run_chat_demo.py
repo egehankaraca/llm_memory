@@ -27,14 +27,11 @@ from conversation_orchestrator import (  # noqa: E402
 HELP = """Komutlar:
   /context [soru]  Memory Service context paketini göster
   /memories       Aktif uzun süreli hafızaları göster
-  /pending        Bekleyen son 200 adayı göster
   /status ID      Async memory işinin durumunu ve kararlarını göster
-  /confirm ID     Gösterilen adayı kalıcı hafızaya açıkça onayla
-  /reject ID      Gösterilen adayı reddet
   /retry          Eksik kaydı aynı ID'lerle tamamla; cevabı yeniden üretme
   /help           Komutları göster
   /exit           Çık
-Komutlar LLM'e gönderilmez. Sıradan bir 'evet' otomatik hafıza onayı değildir.
+Komutlar LLM'e gönderilmez.
 """
 
 
@@ -42,20 +39,11 @@ def print_json(value: object) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2))
 
 
-def print_candidates(candidates: list[dict[str, object]]) -> None:
-    if not candidates:
-        print("Bekleyen hafıza adayı yok.")
-        return
-    for candidate in candidates:
-        candidate_id = candidate["candidate_id"]
-        print("\nKalıcı hafıza için açık onay gerekiyor:")
-        print_json({key: candidate.get(key) for key in (
-            "candidate_id", "category", "key", "value", "sensitivity", "consolidation_action",
-        )})
-        print(f"Kaydedilsin mi? /confirm {candidate_id} veya /reject {candidate_id}")
-
-
 def print_turn(turn: ChatTurn, debug: bool) -> None:
+    emergency_action = getattr(turn, "emergency_action", None)
+    if emergency_action is not None:
+        print("\n[ACİL DURUM ORCHESTRATOR]")
+        print_json(emergency_action.as_dict())
     print(f"\nAsistan: {turn.reply}")
     if turn.model_stats.get("done_reason") == "length":
         print("[Uyarı] Cevap token limitinde durdu; gerekirse CHAT_OLLAMA_NUM_PREDICT artırın.")
@@ -70,6 +58,11 @@ def print_turn(turn: ChatTurn, debug: bool) -> None:
             "input_budget": turn.prompt.input_budget,
             "prompt_trimmed": turn.prompt.trimmed,
             "model_stats": turn.model_stats,
+            "emergency_action": (
+                emergency_action.as_dict()
+                if emergency_action is not None
+                else None
+            ),
             "memory_ingestion": (
                 interaction.get("job")
                 if isinstance(interaction.get("job"), dict)
@@ -85,12 +78,10 @@ def print_turn(turn: ChatTurn, debug: bool) -> None:
     }
     if fallback_sources:
         print(f"[Uyarı] Hafıza analizinde kural katmanı kullanıldı: {', '.join(sorted(fallback_sources))}")
-    if turn.pending_candidates:
-        print_candidates(turn.pending_candidates)
 
 
 def handle_command(orchestrator: ConversationOrchestrator, text: str, debug: bool) -> bool:
-    """Return False to leave the REPL. Consent commands bypass LLM extraction."""
+    """Return False to leave the REPL."""
     command, _, argument = text.partition(" ")
     argument = argument.strip()
     if command == "/exit":
@@ -101,18 +92,8 @@ def handle_command(orchestrator: ConversationOrchestrator, text: str, debug: boo
         print_json(orchestrator.context(argument or None))
     elif command == "/memories":
         print_json(orchestrator.memories())
-    elif command == "/pending":
-        print_candidates(orchestrator.pending_candidates())
     elif command == "/status":
         print_json(orchestrator.interaction_status(argument))
-    elif command in {"/confirm", "/reject"}:
-        result = orchestrator.resolve_candidate(argument, confirm=command == "/confirm")
-        if result.get("status") == "confirmed":
-            print("Hafıza adayı kullanıcı onayıyla kalıcı olarak kaydedildi.")
-        elif result.get("status") == "rejected":
-            print("Hafıza adayı reddedildi; uzun süreli profile eklenmedi.")
-        else:
-            raise OrchestratorError("Beklenmeyen onay/red yanıtı.")
     elif command == "/retry":
         print_turn(orchestrator.retry_pending(), debug)
     else:
@@ -135,11 +116,20 @@ def main(argv: list[str] | None = None) -> int:
         "--debug", action="store_true",
         help="Seçim, token bütçesi ve kayıt bilgilerini göster",
     )
-    parser.add_argument(
+    memory_mode = parser.add_mutually_exclusive_group()
+    memory_mode.add_argument(
         "--async-memory",
+        dest="async_memory",
         action="store_true",
-        help="Memory analizini outbox worker'a bırak; cevap yolunu bekletme",
+        help="Memory analizini outbox worker'a bırak (varsayılan)",
     )
+    memory_mode.add_argument(
+        "--sync-memory",
+        dest="async_memory",
+        action="store_false",
+        help="Yalnızca tanılama için memory analizini bloklayarak çalıştır",
+    )
+    parser.set_defaults(async_memory=None)
     args = parser.parse_args(argv)
     orchestrator: ConversationOrchestrator | None = None
     try:
@@ -149,8 +139,11 @@ def main(argv: list[str] | None = None) -> int:
                 "memory_url": args.memory_url, "ollama_url": args.ollama_url, "model": args.model,
             }.items() if value is not None
         })
-        if args.async_memory:
-            settings = replace(settings, async_memory_ingestion=True)
+        if args.async_memory is not None:
+            settings = replace(
+                settings,
+                async_memory_ingestion=args.async_memory,
+            )
         suffix = uuid.uuid4().hex[:8]
         orchestrator = ConversationOrchestrator(
             settings,
@@ -173,7 +166,10 @@ def main(argv: list[str] | None = None) -> int:
                 print_turn(orchestrator.chat(text), args.debug)
             return 0
         print(HELP)
-        print("Bu bir yerel geliştirme demosudur; canlı hava durumu/cihaz/acil arama araçları yoktur.")
+        print(
+            "Bu bir yerel geliştirme demosudur; acil durum algılama açıktır ancak "
+            "telefon araması yalnızca simüle edilir."
+        )
         while True:
             text = input("\nSen: ").strip()
             if not text:

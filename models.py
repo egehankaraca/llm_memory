@@ -18,6 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from pgvector.sqlalchemy import Vector
 
 from database import Base
 
@@ -51,7 +52,7 @@ class Sensitivity(str, enum.Enum):
     CREDENTIAL = "credential"
 
 
-SENSITIVITIES_REQUIRING_CONFIRMATION = frozenset(
+PROTECTED_SENSITIVITIES = frozenset(
     {
         Sensitivity.HEALTH,
         Sensitivity.EMERGENCY_CONTACT,
@@ -61,9 +62,9 @@ SENSITIVITIES_REQUIRING_CONFIRMATION = frozenset(
     }
 )
 
-
 class VerificationStatus(str, enum.Enum):
     UNVERIFIED = "unverified"
+    USER_ASSERTED = "user_asserted"
     USER_CONFIRMED = "user_confirmed"
     CAREGIVER_CONFIRMED = "caregiver_confirmed"
     SYSTEM_VERIFIED = "system_verified"
@@ -76,11 +77,17 @@ class CandidateMemoryType(str, enum.Enum):
     DISCARD = "discard"
 
 
+class MemoryScope(str, enum.Enum):
+    """Lifetime/storage axis, independent from sensitivity."""
+
+    PROFILE = "profile"
+    EPISODE = "episode"
+    SESSION = "session"
+    DISCARD = "discard"
+
+
 class CandidateStatus(str, enum.Enum):
-    PENDING = "pending"
     AUTO_APPLIED = "auto_applied"
-    CONFIRMED = "confirmed"
-    REJECTED = "rejected"
     IGNORED = "ignored"
 
 
@@ -169,6 +176,147 @@ class MemoryFact(Base):
     valid_from = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     valid_to = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class MemoryEpisode(Base):
+    """An immutable, bounded past event that may be retrieved later."""
+
+    __tablename__ = "memory_episodes"
+    __table_args__ = (
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1",
+            name="ck_memory_episodes_confidence_range",
+        ),
+        Index(
+            "ix_memory_episodes_user_occurred",
+            "user_id",
+            "occurred_at",
+        ),
+        Index(
+            "ix_memory_episodes_user_retention",
+            "user_id",
+            "retention_until",
+        ),
+    )
+
+    id = Column(String(36), primary_key=True, default=new_id)
+    user_id = Column(String(128), nullable=False, index=True)
+    session_id = Column(String(128), nullable=True, index=True)
+    category = Column(String(100), nullable=False)
+    key = Column(String(100), nullable=False)
+    value_json = Column(JSON, nullable=False)
+    sensitivity = Column(
+        SqlEnum(
+            Sensitivity,
+            values_callable=enum_values,
+            native_enum=False,
+            create_constraint=True,
+            name="memory_episode_sensitivity",
+        ),
+        nullable=False,
+        default=Sensitivity.NORMAL,
+    )
+    verification_status = Column(
+        SqlEnum(
+            VerificationStatus,
+            values_callable=enum_values,
+            native_enum=False,
+            create_constraint=True,
+            name="memory_episode_verification_status",
+        ),
+        nullable=False,
+        default=VerificationStatus.UNVERIFIED,
+    )
+    confidence = Column(Numeric(4, 3), nullable=False, default=1)
+    source_event_id = Column(
+        String(36),
+        ForeignKey("memory_events.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    occurred_at = Column(DateTime(timezone=True), nullable=False)
+    retention_until = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class MemoryEmbedding(Base):
+    """Persistent retrieval vector for one immutable memory-fact version."""
+
+    __tablename__ = "memory_embeddings"
+    __table_args__ = (
+        CheckConstraint("dimensions = 768", name="ck_memory_embeddings_dimensions"),
+        Index("ix_memory_embeddings_user_model", "user_id", "model"),
+    )
+
+    memory_id = Column(
+        String(36),
+        ForeignKey("memory_facts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    model = Column(String(128), primary_key=True)
+    user_id = Column(String(128), nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    dimensions = Column(Integer, nullable=False, default=768)
+    embedding = Column(Vector(768), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class MemoryEmbeddingJob(Base):
+    """Durable request to embed one committed long-term memory fact."""
+
+    __tablename__ = "memory_embedding_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "attempt_count >= 0 AND max_attempts > 0",
+            name="ck_memory_embedding_jobs_attempts",
+        ),
+        Index(
+            "ix_memory_embedding_jobs_ready",
+            "status",
+            "available_at",
+            "created_at",
+        ),
+        Index("ix_memory_embedding_jobs_user", "user_id", "status"),
+    )
+
+    memory_id = Column(
+        String(36),
+        ForeignKey("memory_facts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    model = Column(String(128), primary_key=True)
+    user_id = Column(String(128), nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    status = Column(
+        SqlEnum(
+            OutboxStatus,
+            values_callable=enum_values,
+            native_enum=False,
+            create_constraint=True,
+            name="memory_embedding_job_status",
+        ),
+        nullable=False,
+        default=OutboxStatus.PENDING,
+    )
+    attempt_count = Column(Integer, nullable=False, default=0)
+    max_attempts = Column(Integer, nullable=False, default=5)
+    available_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    locked_at = Column(DateTime(timezone=True), nullable=True)
+    locked_by = Column(String(128), nullable=True)
+    last_error = Column(Text, nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(
         DateTime(timezone=True),
@@ -448,6 +596,17 @@ class MemoryCandidate(Base):
         ),
         nullable=False,
     )
+    scope = Column(
+        SqlEnum(
+            MemoryScope,
+            values_callable=enum_values,
+            native_enum=False,
+            create_constraint=True,
+            name="candidate_memory_scope",
+        ),
+        nullable=False,
+        default=MemoryScope.DISCARD,
+    )
     category = Column(String(100), nullable=True)
     key = Column(String(100), nullable=True)
     value_json = Column(JSON, nullable=True)
@@ -463,7 +622,6 @@ class MemoryCandidate(Base):
         default=Sensitivity.NORMAL,
     )
     confidence = Column(Numeric(4, 3), nullable=False)
-    requires_confirmation = Column(Boolean, nullable=False, default=False)
     analyzer_source = Column(String(50), nullable=False, default="rules")
     analysis_json = Column(JSON, nullable=True)
     consolidation_action = Column(
@@ -485,7 +643,7 @@ class MemoryCandidate(Base):
             name="memory_candidate_status",
         ),
         nullable=False,
-        default=CandidateStatus.PENDING,
+        default=CandidateStatus.IGNORED,
     )
     reason = Column(String(500), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=True)

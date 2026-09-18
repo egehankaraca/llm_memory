@@ -1,0 +1,70 @@
+{
+  "model": "qwen3:8b",
+  "dataset": "evals/memory_cases.jsonl",
+  "run_reports": [
+    "evals/qwen3_8b_stability_run_1.json",
+    "evals/qwen3_8b_stability_run_2.json",
+    "evals/qwen3_8b_stability_run_3.json"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "passed": 42,
+      "cases": 50,
+      "accuracy": 0.84,
+      "sensitive_recall": 1.0,
+      "duration_seconds": 534.448,
+      "average_seconds": 10.689,
+      "retry_cases": 7
+    },
+    {
+      "run": 2,
+      "passed": 42,
+      "cases": 50,
+      "accuracy": 0.84,
+      "sensitive_recall": 1.0,
+      "duration_seconds": 564.147,
+      "average_seconds": 11.283,
+      "retry_cases": 7
+    },
+    {
+      "run": 3,
+      "passed": 42,
+      "cases": 50,
+      "accuracy": 0.84,
+      "sensitive_recall": 1.0,
+      "duration_seconds": 527.995,
+      "average_seconds": 10.56,
+      "retry_cases": 6
+    }
+  ],
+  "aggregate": {
+    "samples": 150,
+    "mean_seconds": 10.844,
+    "p50_seconds": 8.553,
+    "p95_seconds": 23.722,
+    "max_seconds": 27.524,
+    "retry_count": 20,
+    "retry_mean_seconds": 23.296,
+    "non_retry_mean_seconds": 8.928,
+    "pass_all_three_count": 41,
+    "fail_all_three_count": 7,
+    "mixed_pass_count": 2,
+    "stable_actual_count": 48,
+    "unstable_actual_count": 2
+  },
+  "failed_all_three": [
+    "sensitive_002",
+    "sensitive_004",
+    "sensitive_010",
+    "sensitive_011",
+    "sensitive_012",
+    "edge_001",
+    "edge_002"
+  ],
+  "unstable_cases": [
+    "long_008",
+    "long_009"
+  ],
+  "conclusion": "The extractor is stable on 48/50 decision signatures, but its 84% accuracy is below the 95% acceptance target. Seven failures are systematic rather than random. Retry doubles latency and dominates p95."
+}

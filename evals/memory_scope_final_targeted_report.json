@@ -1,0 +1,637 @@
+{
+  "generated_at": "2026-09-17T18:49:55.476676+00:00",
+  "analyzer": {
+    "provider": "ollama",
+    "available": true,
+    "model": "qwen3:8b",
+    "policy_version": "3",
+    "installed_models": [
+      "gemma4:12b",
+      "pentagi-qwen3-instruct:4b",
+      "pentagi-qwen3:4b",
+      "qwen3:4b-instruct",
+      "llama3.1:8b-instruct-q8_0",
+      "qwen3:8b",
+      "embeddinggemma:latest",
+      "gemma4:31b-cloud",
+      "qwen3:4b"
+    ],
+    "fallback_enabled": true,
+    "error": null
+  },
+  "dataset": "/Users/egehankaraca/Desktop/llm_memory/evals/memory_cases.jsonl",
+  "summary": {
+    "cases": 9,
+    "passed": 6,
+    "failed": 3,
+    "pass_rate": 0.6667,
+    "fallbacks": 0,
+    "guarded_cases": 1,
+    "errors": 0,
+    "elapsed_seconds": 96.416,
+    "average_seconds": 10.713,
+    "case_metrics": {
+      "memory_type": {
+        "matched": 7,
+        "cases": 9,
+        "rate": 0.7778
+      },
+      "sensitivity": {
+        "matched": 8,
+        "cases": 9,
+        "rate": 0.8889
+      },
+      "confirmation": {
+        "matched": 9,
+        "cases": 9,
+        "rate": 1.0
+      },
+      "destination": {
+        "matched": 6,
+        "cases": 9,
+        "rate": 0.6667
+      }
+    },
+    "sensitive_recall": {
+      "matched": 0,
+      "expected": 0,
+      "rate": 1.0
+    },
+    "decision_metrics_by_type": {
+      "long_term": {
+        "matched": 3,
+        "expected": 4,
+        "rate": 0.75
+      },
+      "sensitive": {
+        "matched": 4,
+        "expected": 5,
+        "rate": 0.8
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "long_008",
+      "passed": true,
+      "text": "Türk sanat müziği dinlemek hoşuma gider",
+      "tags": [
+        "long_term",
+        "preference"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Türk sanat müziği dinlemek hoşuma gider",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Türk sanat müziği dinlemek hoşuma gider",
+            "should_store": false,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "key_fallback_used": true
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının Türk sanat müziğini dinlemeyi tercih ettiğini açıkça ifade etti."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 18.273,
+      "error": null
+    },
+    {
+      "id": "long_009",
+      "passed": true,
+      "text": "Et yemeklerinden hoşlanmam",
+      "tags": [
+        "long_term",
+        "preference",
+        "negative_preference"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Et yemeklerinden hoşlanmam",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Et yemeklerinden hoşlanmam",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "diet",
+            "extracted_key": "diet_preference",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının et yemeklerinden hoşlanmadığını açıkça ifade ettiği bir tercih bildirimi."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 7.52,
+      "error": null
+    },
+    {
+      "id": "sensitive_002",
+      "passed": true,
+      "text": "Merdiven çıkınca dizimde keskin bir sızı oluyor",
+      "tags": [
+        "sensitive",
+        "health",
+        "pain",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Merdiven çıkınca dizimde keskin bir sızı oluyor",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Merdiven çıkınca dizimde keskin bir sızı oluyor",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "health",
+            "extracted_category": "symptom",
+            "extracted_key": "knee_pain_when_climbing_stairs",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "extracted_temporal_scope": "unknown",
+            "temporal_scope_overridden_by_policy": true,
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Kullanıcının dizinde merdiven çıkarken sızı hissetmesi, sağlıkla ilgili bir durum olarak belirtilmiş ve bu bir geçici veya uzun vadeli bir durum olabilir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 10.553,
+      "error": null
+    },
+    {
+      "id": "sensitive_004",
+      "passed": true,
+      "text": "Fındık yediğimde nefesim daralıyor",
+      "tags": [
+        "sensitive",
+        "health",
+        "allergy",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Fındık yediğimde nefesim daralıyor",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Fındık yediğimde nefesim daralıyor",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "profile_fact",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "health",
+            "extracted_category": "health_reaction",
+            "extracted_key": "nut_reaction",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Kullanıcının fındık tüketimiyle ilgili bir nefes daralması deneyimi, sağlık profili kapsamında kalıcı bir bilgi olarak kaydedilmelidir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 10.406,
+      "error": null
+    },
+    {
+      "id": "sensitive_010",
+      "passed": true,
+      "text": "Dün banyoda dengemi kaybedip düştüm",
+      "tags": [
+        "sensitive",
+        "health",
+        "fall",
+        "episode",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "episode"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "episode"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Dün banyoda dengemi kaybedip düştüm",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Dün banyoda dengemi kaybedip düştüm",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "episode",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "health",
+            "extracted_category": "episode",
+            "extracted_key": "fall_in_bathroom",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Kullanıcının banyoda düştüğünü belirten bir olay ifadesi, geçmişiyle ilgili bir olay olarak kaydedilmelidir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 10.245,
+      "error": null
+    },
+    {
+      "id": "sensitive_011",
+      "passed": false,
+      "text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+      "tags": [
+        "sensitive",
+        "health",
+        "disability",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "health",
+            "extracted_category": "communication",
+            "extracted_key": "hearing_accessibility",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "extracted_temporal_scope": "unknown",
+            "temporal_scope_overridden_by_policy": true,
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Kullanıcının işitme cihazı olmadan konuşmaları anlamakta zorlanıyor olduğunu açık şekilde ifade etti. Bu, sağlık alanındaki bir geçici durum olarak sınıflandırılabilir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 12.314,
+      "error": null
+    },
+    {
+      "id": "sensitive_012",
+      "passed": false,
+      "text": "Geçen yıl kalça ameliyatı oldum",
+      "tags": [
+        "sensitive",
+        "health",
+        "procedure",
+        "episode",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "episode"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "discard",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "none"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": null,
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Geçen yıl kalça ameliżyati oldum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "profile_fact",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "health",
+            "extracted_category": "episode",
+            "extracted_key": "past_surgery",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "evidence_guard": "unsupported_quote"
+          },
+          "reason": "Policy: Adayın kanıtı kullanıcı mesajında bulunamadı. Extractor: Kullanıcının geçmişiyle ilgili bir olay (kalça ameliyatı) belirtilmiştir, bu bir epizodik bilgi olarak saklanmalıdır."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": false,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [
+        "unsupported_quote"
+      ],
+      "used_fallback": false,
+      "elapsed_seconds": 10.236,
+      "error": null
+    },
+    {
+      "id": "edge_001",
+      "passed": true,
+      "text": "Artık sabah 7’de değil, 8’de kalkıyorum",
+      "tags": [
+        "edge",
+        "correction",
+        "supersede",
+        "routine"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Artık sabah 7’de değil, 8’de kalkıyorum",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Artık sabah 7’de değil, 8’de kalkıyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "habit",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "routine",
+            "extracted_key": "morning_wake_time",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "value_grounding_fallback": "unsupported_value"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının sabah uyanma saatinin değiştiğini açık şekilde ifade etti."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.853,
+      "error": null
+    },
+    {
+      "id": "edge_002",
+      "passed": false,
+      "text": "Eskiden çay severdim ama artık içmiyorum",
+      "tags": [
+        "edge",
+        "correction",
+        "negative_preference"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": {
+            "type": "user_state",
+            "description": "Eskiden çay severdim ama artık içmiyorum",
+            "source_text": "Eskiden çay severdim ama artık içmiyorum",
+            "target": "current_session"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Eskiden çay severdim ama artık içmiyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "none",
+            "extracted_category": "preference",
+            "extracted_key": "tea_consumption",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "extracted_temporal_scope": "persistent",
+            "temporal_scope_overridden_by_policy": true
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Kullanıcının geçmişte çay içme alışkanlığından uzaklaştığını açık şekilde ifade etti."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.016,
+      "error": null
+    }
+  ]
+}

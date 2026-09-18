@@ -22,7 +22,6 @@ class ChatDemoOutputTest(unittest.TestCase):
             ),
             model_stats={"done_reason": done_reason, "response_mode": "native_ollama_chat"},
             decisions=[],
-            pending_candidates=[],
         )
 
     def test_debug_prints_answer_once_without_redundant_answer_fields(self):

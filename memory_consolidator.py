@@ -15,7 +15,6 @@ class ConsolidationAction(str, enum.Enum):
     CREATE = "create"
     UNCHANGED = "unchanged"
     SUPERSEDE = "supersede"
-    CONFLICT_REQUIRES_CONFIRMATION = "conflict_requires_confirmation"
 
 
 @dataclass(frozen=True)
@@ -262,23 +261,16 @@ def resolve_consolidation(
             reason="Aynı memory değeri zaten aktif; yeni fact oluşturulmadı.",
         )
 
-    if has_explicit_correction(source_text):
-        return ConsolidationPlan(
-            action=ConsolidationAction.SUPERSEDE,
-            category=matched.category,
-            key=matched.key,
-            matched_fact_id=matched.id,
-            matched_by=matched_by,
-            similarity=similarity,
-            reason="Kullanıcı mevcut memory için açık bir güncelleme belirtti.",
-        )
-
     return ConsolidationPlan(
-        action=ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION,
+        action=ConsolidationAction.SUPERSEDE,
         category=matched.category,
         key=matched.key,
         matched_fact_id=matched.id,
         matched_by=matched_by,
         similarity=similarity,
-        reason="Aynı memory slotu için farklı değer bulundu; kullanıcı onayı gerekli.",
+        reason=(
+            "Kullanıcı mevcut memory için açık bir güncelleme belirtti."
+            if has_explicit_correction(source_text)
+            else "Aynı memory slotundaki yeni açık kullanıcı beyanı önceki değerin yerini aldı."
+        ),
     )

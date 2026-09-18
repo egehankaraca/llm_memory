@@ -1,6 +1,6 @@
 import unittest
 
-from memory_safety import evidence_clause, has_mixed_question_clauses, has_reported_speech, is_question_like, numeric_atoms, supported_quote, temporal_atoms
+from memory_safety import evidence_clause, has_medication_dose_amount, has_mixed_question_clauses, has_reported_speech, is_question_like, numeric_atoms, supported_quote, temporal_atoms
 
 
 class MemorySafetyTest(unittest.TestCase):
@@ -26,6 +26,12 @@ class MemorySafetyTest(unittest.TestCase):
     def test_numeric_zero_and_minutes_are_not_silently_removed(self):
         self.assertEqual(numeric_atoms("7, 07:00, 7.00"), {7})
         self.assertEqual(numeric_atoms("00:00, 7:30"), {0, 7, 30})
+
+    def test_medication_dose_amount_does_not_confuse_time_with_dose(self):
+        self.assertFalse(has_medication_dose_amount("İlacımı her sabah saat 8'de alırım"))
+        self.assertFalse(has_medication_dose_amount("İlacımı 08:30'da alırım"))
+        self.assertTrue(has_medication_dose_amount("İlacımın 5 mg olanını alırım"))
+        self.assertTrue(has_medication_dose_amount("Akşam hapından iki tane alırım"))
 
     def test_weekday_does_not_match_prefix_of_other_day(self):
         self.assertEqual(temporal_atoms("Cumartesi"), {"weekly", "day:saturday"})

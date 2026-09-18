@@ -40,7 +40,6 @@ class FakeMemoryHttp:
         self.messages = {}
         self.owners = {}
         self.events = {}
-        self.pending_texts = set()
         self.source = "ollama"
         self.sticky_ttl = False
 
@@ -112,11 +111,8 @@ class FakeMemoryHttp:
             self.owner(method, path, user_id, session_id)
             items = self.visible_temporary(user_id, session_id)
             window = self.window(user_id, session_id)
-            include = payload.get("include_unconfirmed_sensitive_history", False)
-            if not include:
-                window = [item for item in window if (user_id, item["content"]) not in self.pending_texts]
             newest = items[0]["value"] if items else None
-            return {"profile_facts": [fact for (owner, *_), fact in self.facts.items() if owner == user_id], "temporary_memories": items, "session": ({"description": newest} if newest is not None and not isinstance(newest, dict) else newest or {}), "recent_messages": [{"role": item["role"], "content": item["content"]} for item in window], "message_refs": [item["message_id"] for item in window], "history_policy": {"include_unconfirmed_sensitive_history": include}}
+            return {"profile_facts": [fact for (owner, *_), fact in self.facts.items() if owner == user_id], "temporary_memories": items, "session": ({"description": newest} if newest is not None and not isinstance(newest, dict) else newest or {}), "recent_messages": [{"role": item["role"], "content": item["content"]} for item in window], "message_refs": [item["message_id"] for item in window]}
         if path == "/v1/interactions:process":
             event_id = payload["event_id"]
             if event_id in self.events:
@@ -125,16 +121,29 @@ class FakeMemoryHttp:
             # The repeated coffee input intentionally has the same expected type.
             index = scenarios.SCENARIO_TEXTS.index(text)
             memory_type = scenarios.EXPECTED_TYPES[index]
-            status = "pending" if memory_type == "sensitive" else "ignored" if memory_type == "discard" else "auto_applied"
+            status = "ignored" if memory_type == "discard" else "auto_applied"
             expiry = None if index == 9 or memory_type in {"long_term", "discard"} else (self.clock.now() + timedelta(hours=24)).isoformat()
-            decision = {"candidate_id": f"candidate-{len(self.calls)}", "memory_type": memory_type, "status": status, "analyzer_source": self.source, "sensitivity": "health" if memory_type == "sensitive" else "normal", "requires_confirmation": memory_type == "sensitive", "expires_at": expiry}
+            decision = {"candidate_id": f"candidate-{len(self.calls)}", "memory_type": memory_type, "status": status, "analyzer_source": self.source, "sensitivity": "health" if memory_type == "sensitive" else "normal", "expires_at": expiry}
             if self.source == "rules_guard":
                 decision["analysis"] = {"upstream_analyzer_source": "ollama"}
+            elif memory_type == "sensitive":
+                decision["analysis"] = {"verification_status": "user_asserted"}
             if memory_type == "long_term":
                 key = "coffee" if "kahve" in text else "tennis" if "tenis" in text else "address_preference"
                 self.request("POST", "/v1/memories", {"user_id": user_id, "category": "routine", "key": key, "value": text})
-            if memory_type == "sensitive":
-                self.pending_texts.add((user_id, text))
+            if memory_type == "sensitive" and status == "auto_applied" and expiry is None:
+                self.request("POST", "/v1/memories", {
+                    "user_id": user_id, "category": "medication", "key": f"health-{index}",
+                    "value": text, "sensitivity": "health",
+                    "verification_status": "user_asserted",
+                })
+            if memory_type == "sensitive" and status == "auto_applied" and expiry is not None:
+                self.request("POST", "/v1/temporary-memories", {
+                    "user_id": user_id, "session_id": session_id,
+                    "category": "symptom", "key": f"health-{index}", "value": text,
+                    "sensitivity": "health", "verification_status": "user_asserted",
+                    "expires_at": expiry, "occurred_at": payload["occurred_at"],
+                })
             if memory_type == "short_term":
                 self.request("POST", "/v1/temporary-memories", {
                     "user_id": user_id, "session_id": session_id,

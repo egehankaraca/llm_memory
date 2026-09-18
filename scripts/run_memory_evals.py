@@ -25,11 +25,12 @@ from memory_analyzer import (  # noqa: E402
     MemoryDecision,
     analyze_message,
     get_analyzer_status,
+    resolved_memory_scope,
 )
 
 
 DEFAULT_DATASET = PROJECT_ROOT / "evals" / "memory_cases.jsonl"
-Destination = Literal["profile", "session", "pending", "none"]
+Destination = Literal["profile", "episode", "session", "none"]
 
 
 class EvalInput(BaseModel):
@@ -44,7 +45,6 @@ class ExpectedDecision(BaseModel):
 
     memory_type: models.CandidateMemoryType
     sensitivity: models.Sensitivity
-    requires_confirmation: bool
     destination: Destination
 
 
@@ -90,55 +90,45 @@ def load_dataset(path: Path) -> list[EvalCase]:
     return cases
 
 
-def effective_confirmation(decision: MemoryDecision) -> bool:
-    return decision.requires_confirmation or (
-        decision.memory_type == models.CandidateMemoryType.SENSITIVE
-        or decision.sensitivity
-        in models.SENSITIVITIES_REQUIRING_CONFIRMATION
-    )
-
-
 def destination_for(decision: MemoryDecision) -> Destination:
-    if effective_confirmation(decision):
-        return "pending"
-    if decision.memory_type == models.CandidateMemoryType.LONG_TERM:
+    scope = resolved_memory_scope(decision)
+    if scope == models.MemoryScope.PROFILE:
         return "profile"
-    if decision.memory_type == models.CandidateMemoryType.SHORT_TERM:
+    if scope == models.MemoryScope.EPISODE:
+        return "episode"
+    if scope == models.MemoryScope.SESSION:
         return "session"
     return "none"
 
 
-def expected_signature(decision: ExpectedDecision) -> tuple[str, str, bool, str]:
+def expected_signature(decision: ExpectedDecision) -> tuple[str, str, str]:
     return (
         decision.memory_type.value,
         decision.sensitivity.value,
-        decision.requires_confirmation,
         decision.destination,
     )
 
 
-def actual_signature(decision: MemoryDecision) -> tuple[str, str, bool, str]:
+def actual_signature(decision: MemoryDecision) -> tuple[str, str, str]:
     return (
         decision.memory_type.value,
         decision.sensitivity.value,
-        effective_confirmation(decision),
         destination_for(decision),
     )
 
 
-def signature_dict(signature: tuple[str, str, bool, str]) -> dict[str, object]:
+def signature_dict(signature: tuple[str, str, str]) -> dict[str, object]:
     return {
         "memory_type": signature[0],
         "sensitivity": signature[1],
-        "requires_confirmation": signature[2],
-        "destination": signature[3],
+        "destination": signature[2],
     }
 
 
 def compare_decisions(
     expected: list[ExpectedDecision],
     actual: list[MemoryDecision],
-) -> tuple[bool, list[tuple[str, str, bool, str]], list[tuple[str, str, bool, str]]]:
+) -> tuple[bool, list[tuple[str, str, str]], list[tuple[str, str, str]]]:
     expected_signatures = [expected_signature(item) for item in expected]
     actual_signatures = [actual_signature(item) for item in actual]
     return (
@@ -149,14 +139,13 @@ def compare_decisions(
 
 
 def compare_dimensions(
-    expected: list[tuple[str, str, bool, str]],
-    actual: list[tuple[str, str, bool, str]],
+    expected: list[tuple[str, str, str]],
+    actual: list[tuple[str, str, str]],
 ) -> dict[str, bool]:
     dimensions = {
         "memory_type": 0,
         "sensitivity": 1,
-        "confirmation": 2,
-        "destination": 3,
+        "destination": 2,
     }
     return {
         name: Counter(item[index] for item in expected)
@@ -198,6 +187,12 @@ def evaluate_case(case: EvalCase, occurred_at: datetime) -> dict[str, object]:
                 policy_guards.add("contextual_intent_recovery")
             if analysis.get("extraction_retry_count"):
                 policy_guards.add("extraction_retry")
+            if analysis.get("contract_normalization"):
+                policy_guards.add("contract_normalization")
+            if analysis.get("evidence_quote_fallback"):
+                policy_guards.add("evidence_quote_fallback")
+            if analysis.get("value_grounding_fallback"):
+                policy_guards.add("value_grounding_fallback")
         return {
             "id": case.id,
             "passed": passed,
@@ -230,7 +225,6 @@ def evaluate_case(case: EvalCase, occurred_at: datetime) -> dict[str, object]:
             "dimension_matches": {
                 "memory_type": False,
                 "sensitivity": False,
-                "confirmation": False,
                 "destination": False,
             },
             "sources": [],
@@ -297,11 +291,8 @@ def build_summary(results: list[dict[str, object]]) -> dict[str, object]:
     dimension_matches = {
         "memory_type": 0,
         "sensitivity": 0,
-        "confirmation": 0,
         "destination": 0,
     }
-    expected_pending = 0
-    matched_pending = 0
     for result in results:
         expected_types = Counter(item["memory_type"] for item in result["expected"])
         actual_types = Counter(item["memory_type"] for item in result["actual"])
@@ -311,15 +302,6 @@ def build_summary(results: list[dict[str, object]]) -> dict[str, object]:
 
         for dimension, matched in result["dimension_matches"].items():
             dimension_matches[dimension] += int(matched)
-
-        case_expected_pending = sum(
-            item["destination"] == "pending" for item in result["expected"]
-        )
-        case_actual_pending = sum(
-            item["destination"] == "pending" for item in result["actual"]
-        )
-        expected_pending += case_expected_pending
-        matched_pending += min(case_expected_pending, case_actual_pending)
 
     type_metrics = {
         memory_type: {
@@ -347,13 +329,6 @@ def build_summary(results: list[dict[str, object]]) -> dict[str, object]:
             }
             for dimension, count in dimension_matches.items()
         },
-        "sensitive_recall": {
-            "matched": matched_pending,
-            "expected": expected_pending,
-            "rate": round(matched_pending / expected_pending, 4)
-            if expected_pending
-            else 1.0,
-        },
         "decision_metrics_by_type": type_metrics,
     }
 
@@ -376,11 +351,6 @@ def print_summary(summary: dict[str, object]) -> None:
             f"    {dimension:<12} "
             f"{metric['matched']}/{metric['cases']} ({metric['rate']:.1%})"
         )
-    sensitive = summary["sensitive_recall"]
-    print(
-        "  Sensitive recall: "
-        f"{sensitive['matched']}/{sensitive['expected']} ({sensitive['rate']:.1%})"
-    )
     print("  Decisions:")
     for memory_type, metric in summary["decision_metrics_by_type"].items():
         print(

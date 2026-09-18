@@ -25,7 +25,7 @@ class MemoryRetrieverTest(unittest.TestCase):
                 id="tea",
                 category="preference",
                 key="tea_style",
-                value="Çayımı açık içerim",
+                value="Çayımı açık ve şekersiz içerim",
                 confidence=0.95,
                 verification_status="unverified",
                 updated_at=self.now - timedelta(days=1),
@@ -73,6 +73,102 @@ class MemoryRetrieverTest(unittest.TestCase):
             ["address"],
         )
         self.assertIn("pinned_category", result.selected[0].reasons)
+
+    def test_turkish_alias_resolves_form_of_address_without_pinning(self) -> None:
+        result = select_profile_memories(
+            self.memories,
+            query="Bana nasıl seslenmelisin?",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories=set(),
+            now=self.now,
+        )
+
+        self.assertEqual(
+            [selected.memory.id for selected in result.selected],
+            ["address"],
+        )
+        self.assertTrue(result.alias_used)
+        self.assertIn("concept_alias", result.selected[0].reasons)
+
+    def test_turkish_alias_bridges_sweetener_and_sugarless_value(self) -> None:
+        result = select_profile_memories(
+            self.memories,
+            query="Tatlandırıcı kullanır mıydım?",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories=set(),
+            now=self.now,
+        )
+
+        self.assertEqual(
+            [selected.memory.id for selected in result.selected],
+            ["tea"],
+        )
+        self.assertIn("concept_alias", result.selected[0].reasons)
+
+    def test_food_suggestion_intent_retrieves_stored_food_preference(self) -> None:
+        food = ProfileMemory(
+            id="pasta",
+            category="food_preference",
+            key="preferred_food",
+            value="Ben makarna yemeyi çok severim.",
+            confidence=0.95,
+            verification_status="unverified",
+            updated_at=self.now,
+        )
+        tennis = ProfileMemory(
+            id="tennis",
+            category="routine",
+            key="tennis_schedule",
+            value="Her cumartesi sabah 7'de tenis oynarım.",
+            confidence=0.95,
+            verification_status="unverified",
+            updated_at=self.now,
+        )
+
+        for query in (
+            "Bugün ne yesem?",
+            "Akşam ne yiyebilirim?",
+            "Acıktım, bana bir şey önerir misin?",
+        ):
+            with self.subTest(query=query):
+                result = select_profile_memories(
+                    [food, tennis],
+                    query=query,
+                    max_facts=20,
+                    max_tokens=1_500,
+                    pinned_categories=set(),
+                    semantic_scores={"pasta": 0.30, "tennis": 0.20},
+                    semantic_min_similarity=0.40,
+                    now=self.now,
+                )
+
+                self.assertEqual(
+                    [selected.memory.id for selected in result.selected],
+                    ["pasta"],
+                )
+                self.assertIn("concept_alias", result.selected[0].reasons)
+
+    def test_semantic_score_can_recover_a_lexically_unrelated_fact(self) -> None:
+        result = select_profile_memories(
+            self.memories,
+            query="Bunu sıcak mı tüketiyordum?",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories=set(),
+            semantic_scores={"tea": 0.91, "wake": 0.2, "address": 0.1},
+            semantic_min_similarity=0.55,
+            now=self.now,
+        )
+
+        self.assertEqual(
+            [selected.memory.id for selected in result.selected],
+            ["tea"],
+        )
+        self.assertTrue(result.semantic_used)
+        self.assertEqual(result.semantic_candidate_count, 1)
+        self.assertIn("semantic_similarity", result.selected[0].reasons)
 
     def test_fact_count_limit_is_enforced(self) -> None:
         result = select_profile_memories(

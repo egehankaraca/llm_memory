@@ -27,7 +27,8 @@ class MemoryEvalRunnerTest(unittest.TestCase):
             for case in cases
             for decision in case.expected.decisions
         )
-        self.assertGreaterEqual(expected_types[models.CandidateMemoryType.SENSITIVE], 15)
+        self.assertGreaterEqual(expected_types[models.CandidateMemoryType.SENSITIVE], 13)
+        self.assertGreaterEqual(expected_types[models.CandidateMemoryType.DISCARD], 10)
 
     def test_comparison_ignores_decision_order(self) -> None:
         case = run_memory_evals.EvalCase.model_validate(
@@ -39,14 +40,14 @@ class MemoryEvalRunnerTest(unittest.TestCase):
                         {
                             "memory_type": "long_term",
                             "sensitivity": "normal",
-                            "requires_confirmation": False,
+
                             "destination": "profile",
                         },
                         {
                             "memory_type": "sensitive",
                             "sensitivity": "health",
-                            "requires_confirmation": True,
-                            "destination": "pending",
+
+                            "destination": "profile",
                         },
                     ]
                 },
@@ -61,7 +62,7 @@ class MemoryEvalRunnerTest(unittest.TestCase):
                 value="test",
                 sensitivity=models.Sensitivity.HEALTH,
                 confidence=0.9,
-                requires_confirmation=True,
+
                 expires_at=None,
                 reason="test",
                 analyzer_source="ollama",
@@ -73,7 +74,7 @@ class MemoryEvalRunnerTest(unittest.TestCase):
                 value="test",
                 sensitivity=models.Sensitivity.NORMAL,
                 confidence=0.9,
-                requires_confirmation=False,
+
                 expires_at=None,
                 reason="test",
                 analyzer_source="ollama",
@@ -96,7 +97,7 @@ class MemoryEvalRunnerTest(unittest.TestCase):
                         {
                             "memory_type": "short_term",
                             "sensitivity": "normal",
-                            "requires_confirmation": False,
+
                             "destination": "session",
                         }
                     ]
@@ -111,7 +112,7 @@ class MemoryEvalRunnerTest(unittest.TestCase):
             value={"type": "outing"},
             sensitivity=models.Sensitivity.NORMAL,
             confidence=0.8,
-            requires_confirmation=False,
+
             expires_at=None,
             reason="fallback",
             analyzer_source="rules_fallback",

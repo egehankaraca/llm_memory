@@ -6,3 +6,4 @@ htmlcov/
 __pycache__/
 *.py[cod]
 venv/
+evals/retrieval_benchmark*.json

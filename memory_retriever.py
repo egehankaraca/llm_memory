@@ -7,7 +7,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Mapping
 
 
 ESTIMATED_CHARACTERS_PER_TOKEN = 3
@@ -29,6 +29,90 @@ TURKISH_STOP_WORDS = {
     "ne",
     "su",
     "ve",
+}
+
+# Retrieval aliases are intentionally separate from the extraction policy. They
+# do not decide whether a sentence becomes memory; they only bridge common
+# Turkish utterances and the stable English category/key names stored by the
+# extractor. Semantic embeddings remain optional, while these aliases provide a
+# deterministic and inexpensive baseline for small profile stores.
+CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
+    "form_of_address": (
+        "form of address",
+        "form_of_address",
+        "hitap",
+        "seslen",
+        "bana de",
+        "beni cagir",
+        "adimi kullan",
+    ),
+    "tea": ("tea", "cay", "cayimi"),
+    "tea_sweetener": (
+        "sugar",
+        "sweetener",
+        "seker",
+        "sekersiz",
+        "tatlandirici",
+        "tatlandir",
+    ),
+    "coffee": ("coffee", "kahve", "turk kahvesi"),
+    "wake_time": (
+        "wake time",
+        "wake_up",
+        "uyan",
+        "kalk",
+        "sabah kacta",
+    ),
+    "sleep_time": ("sleep time", "bedtime", "uyu", "yatma saati"),
+    "medication": ("medication", "medicine", "ilac", "tablet", "hap"),
+    "health": (
+        "health",
+        "saglik",
+        "tansiyon",
+        "agri",
+        "hastalik",
+        "doktor",
+    ),
+    "emergency_contact": (
+        "emergency contact",
+        "emergency_contact",
+        "acil kisi",
+        "acil durumda",
+        "kimi ara",
+    ),
+    "family": (
+        "family",
+        "aile",
+        "kizim",
+        "oglum",
+        "esim",
+        "kuzen",
+        "torun",
+    ),
+    "food": (
+        "food",
+        "meal",
+        "yemek",
+        "yiyecek",
+        "yesem",
+        "yiyeyim",
+        "yiyebilirim",
+        "yemeliyim",
+        "aciktim",
+        "acim",
+        "kahvalti",
+        "ogle yemegi",
+        "aksam yemegi",
+    ),
+    "drink": ("drink", "beverage", "icecek", "icerim", "iciyorum"),
+    "preference": ("preference", "tercih", "severim", "sevmem", "hoslan"),
+    "accessibility": (
+        "accessibility",
+        "erisilebilirlik",
+        "yavas konus",
+        "kisa cumle",
+        "sesli",
+    ),
 }
 
 
@@ -60,6 +144,9 @@ class ProfileRetrievalResult:
     max_facts: int
     max_tokens: int
     query_used: bool
+    alias_used: bool = False
+    semantic_used: bool = False
+    semantic_candidate_count: int = 0
 
     @property
     def omitted_fact_count(self) -> int:
@@ -120,6 +207,31 @@ def _matched_query_tokens(
     }
 
 
+def _concepts_for_text(value: str) -> set[str]:
+    normalized = normalize_text(value).replace("_", " ")
+    tokens = tokenize(normalized)
+    concepts: set[str] = set()
+    for concept, aliases in CONCEPT_ALIASES.items():
+        for alias in aliases:
+            normalized_alias = normalize_text(alias).replace("_", " ")
+            alias_tokens = tokenize(normalized_alias)
+            if not alias_tokens:
+                continue
+            if len(alias_tokens) == 1:
+                alias_token = next(iter(alias_tokens))
+                if any(_token_matches(alias_token, token) for token in tokens):
+                    concepts.add(concept)
+                    break
+                continue
+            if all(
+                any(_token_matches(alias_token, token) for token in tokens)
+                for alias_token in alias_tokens
+            ):
+                concepts.add(concept)
+                break
+    return concepts
+
+
 def _aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=timezone.utc)
@@ -129,9 +241,10 @@ def _aware_utc(value: datetime) -> datetime:
 def _score_memory(
     memory: ProfileMemory,
     query_tokens: set[str],
+    query_concepts: set[str],
     pinned_categories: set[str],
     now: datetime,
-) -> tuple[float, tuple[str, ...], bool]:
+) -> tuple[float, tuple[str, ...], bool, bool]:
     category_tokens = tokenize(memory.category)
     key_tokens = tokenize(memory.key.replace("_", " "))
     value_tokens = tokenize(
@@ -151,6 +264,20 @@ def _score_memory(
         if matched_tokens:
             reasons.append("query_overlap")
 
+    memory_concepts = _concepts_for_text(
+        " ".join(
+            (
+                memory.category,
+                memory.key.replace("_", " "),
+                json.dumps(memory.value, ensure_ascii=False, sort_keys=True),
+            )
+        )
+    )
+    concept_matches = query_concepts & memory_concepts
+    if query_concepts and concept_matches:
+        relevance += 55.0 * len(concept_matches) / len(query_concepts)
+        reasons.append("concept_alias")
+
     normalized_category = normalize_text(memory.category).replace(" ", "_")
     pinned = normalized_category in pinned_categories
     if pinned:
@@ -165,7 +292,12 @@ def _score_memory(
         relevance += 4.0
         reasons.append("verified")
     reasons.append("recency_confidence")
-    return relevance, tuple(reasons), bool(matched_tokens)
+    return (
+        relevance,
+        tuple(reasons),
+        bool(matched_tokens),
+        bool(concept_matches),
+    )
 
 
 def select_profile_memories(
@@ -175,33 +307,61 @@ def select_profile_memories(
     max_facts: int,
     max_tokens: int,
     pinned_categories: set[str],
+    semantic_scores: Mapping[str, float] | None = None,
+    semantic_min_similarity: float = 0.40,
     now: datetime | None = None,
 ) -> ProfileRetrievalResult:
     selection_time = now or datetime.now(timezone.utc)
     query_tokens = tokenize(query or "")
+    query_concepts = _concepts_for_text(query or "")
+    bounded_semantic_scores = {
+        memory_id: max(-1.0, min(1.0, float(score)))
+        for memory_id, score in (semantic_scores or {}).items()
+    }
     normalized_pinned = {
         normalize_text(category).replace(" ", "_")
         for category in pinned_categories
     }
 
-    scored: list[tuple[ProfileMemory, float, tuple[str, ...], bool, int]] = []
+    scored: list[
+        tuple[ProfileMemory, float, tuple[str, ...], bool, bool, bool, int]
+    ] = []
     for memory in memories:
-        score, reasons, query_match = _score_memory(
+        score, reasons, query_match, alias_match = _score_memory(
             memory,
             query_tokens,
+            query_concepts,
             normalized_pinned,
             selection_time,
         )
+        semantic_score = bounded_semantic_scores.get(memory.id)
+        semantic_match = (
+            semantic_score is not None
+            and semantic_score >= semantic_min_similarity
+        )
+        if semantic_match:
+            score += 80.0 * semantic_score
+            reasons = (*reasons, "semantic_similarity")
         token_cost = estimate_tokens(
             {memory.category: {memory.key: memory.value}}
         )
-        scored.append((memory, score, reasons, query_match, token_cost))
+        scored.append(
+            (
+                memory,
+                score,
+                reasons,
+                query_match,
+                alias_match,
+                semantic_match,
+                token_cost,
+            )
+        )
 
     if query_tokens:
         candidates = [
             item
             for item in scored
-            if item[3] or "pinned_category" in item[2]
+            if item[3] or item[4] or item[5] or "pinned_category" in item[2]
         ]
     else:
         candidates = scored
@@ -216,7 +376,7 @@ def select_profile_memories(
 
     selected: list[SelectedProfileMemory] = []
     used_tokens = 0
-    for memory, score, reasons, _, token_cost in candidates:
+    for memory, score, reasons, _, _, _, token_cost in candidates:
         if len(selected) >= max_facts:
             break
         if token_cost > max_tokens - used_tokens:
@@ -239,4 +399,7 @@ def select_profile_memories(
         max_facts=max_facts,
         max_tokens=max_tokens,
         query_used=bool(query_tokens),
+        alias_used=any(item[4] for item in candidates),
+        semantic_used=any(item[5] for item in candidates),
+        semantic_candidate_count=sum(1 for item in candidates if item[5]),
     )

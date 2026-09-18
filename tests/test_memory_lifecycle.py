@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import main
+import memory_analyzer
 import models
 
 
@@ -34,18 +35,17 @@ class MemoryLifecycleTest(unittest.TestCase):
             occurred_at=self.start, expires_at=self.start + timedelta(minutes=minutes),
         ), self.db)["temporary_memory"]
 
-    def context(self, *, now=None, session="session", include=False):
+    def context(self, *, now=None, session="session"):
         with patch.object(main, "utc_now", return_value=now or self.start + timedelta(seconds=1)):
             return main.build_context(main.ContextRequest(
                 user_id="owner", session_id=session,
-                include_unconfirmed_sensitive_history=include,
             ), self.db)
 
     def decision(self, kind, key, value, *, sensitive=False, expiry=None):
         return main.MemoryDecision(
             memory_type=kind, category="health" if sensitive else "session", key=key,
             value=value, sensitivity=models.Sensitivity.HEALTH if sensitive else models.Sensitivity.NORMAL,
-            confidence=0.95, requires_confirmation=sensitive, expires_at=expiry,
+            confidence=0.95,expires_at=expiry,
             reason="Controlled extraction", analyzer_source="ollama",
         )
 
@@ -125,7 +125,7 @@ class MemoryLifecycleTest(unittest.TestCase):
             value="Her sabah sade Türk kahvesi içerim",
             sensitivity=models.Sensitivity.NORMAL,
             confidence=0.95,
-            requires_confirmation=False,
+
             expires_at=None,
             reason="Controlled extraction",
             analyzer_source="ollama",
@@ -218,60 +218,165 @@ class MemoryLifecycleTest(unittest.TestCase):
         row = self.db.get(models.TemporaryMemory, newer["memory_id"])
         self.assertEqual(main.stored_utc_datetime(row.occurred_at), self.start + timedelta(minutes=2))
 
-    def test_sensitive_current_state_confirmation_stays_temporary(self):
+    def test_sensitive_current_state_auto_applies_and_stays_temporary(self):
         decision = self.decision(models.CandidateMemoryType.SENSITIVE, "headache", "Başım ağrıyor.",
                                  sensitive=True, expiry=self.start + timedelta(minutes=60))
         result = self.ingest([decision], text=decision.value)
         candidate = result["decisions"][0]
-        self.assertEqual(candidate["status"], "pending")
-        self.assertEqual(candidate["analysis"]["storage_destination"], "temporary")
-        self.assertEqual(self.context()["temporary_memories"], [])
-        self.assertEqual(self.context()["recent_messages"], [])
-        self.assertEqual(len(self.context(include=True)["recent_messages"]), 1)
-        confirmed = main.confirm_memory_candidate(candidate["candidate_id"],
-                                                  main.CandidateDecisionRequest(user_id="owner"), self.db)
-        self.assertEqual(confirmed["status"], "confirmed")
+        self.assertEqual(candidate["status"], "auto_applied")
+        self.assertEqual(candidate["analysis"]["storage_destination"], "session")
         self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
         self.assertEqual(len(self.context()["temporary_memories"]), 1)
         self.assertEqual(self.context(now=self.start + timedelta(minutes=60))["temporary_memories"], [])
-        self.assertEqual(self.context(now=self.start + timedelta(minutes=60))["recent_messages"], [])
+        self.assertEqual(len(self.context()["recent_messages"]), 1)
         self.assertEqual(self.context(session="new-session")["temporary_memories"], [])
 
-    def test_expired_sensitive_candidate_cannot_be_confirmed(self):
-        result = self.ingest([self.decision(models.CandidateMemoryType.SENSITIVE, "symptom", "Belirti",
-                                           sensitive=True, expiry=self.start + timedelta(minutes=1))])
-        with patch.object(main, "utc_now", return_value=self.start + timedelta(minutes=1)):
-            with self.assertRaises(HTTPException) as error:
-                main.confirm_memory_candidate(result["decisions"][0]["candidate_id"],
-                                              main.CandidateDecisionRequest(user_id="owner"), self.db)
-        self.assertEqual(error.exception.status_code, 422)
+    def test_direct_health_symptom_auto_applies_with_ttl_as_user_asserted(self):
+        text = "Başım ağrıyor."
+        decision = main.MemoryDecision(
+            memory_type=models.CandidateMemoryType.SENSITIVE,
+            category="symptom",
+            key="headache",
+            value=text,
+            sensitivity=models.Sensitivity.HEALTH,
+            confidence=0.95,
+
+            expires_at=self.start + timedelta(hours=1),
+            reason="Direct health assertion",
+            analyzer_source="ollama",
+            analysis_metadata={
+                "health_persistence_policy": memory_analyzer.HEALTH_ASSERTION_POLICY,
+                "verification_status": models.VerificationStatus.USER_ASSERTED.value,
+                "claim_kind": "assertion",
+                "subject": "user",
+                "should_store": True,
+                "speech_act": "current_state",
+                "evidence_text": text,
+            },
+        )
+
+        result = self.ingest(
+            [decision],
+            event="direct-health-symptom",
+            text=text,
+        )
+
+        candidate = result["decisions"][0]
+        self.assertEqual(candidate["status"], "auto_applied")
+        row = self.db.get(models.TemporaryMemory, candidate["applied_ref"])
+        self.assertEqual(row.sensitivity, models.Sensitivity.HEALTH)
+        self.assertEqual(
+            row.verification_status,
+            models.VerificationStatus.USER_ASSERTED,
+        )
+        self.assertEqual(
+            main.stored_utc_datetime(row.expires_at),
+            self.start + timedelta(hours=1),
+        )
+
+    def test_bounded_health_event_is_append_only_episode_and_query_retrievable(self):
+        text = "Dün banyoda dengemi kaybedip düştüm."
+        decision = main.MemoryDecision(
+            memory_type=models.CandidateMemoryType.SENSITIVE,
+            category="incident",
+            key="bathroom_fall",
+            value=text,
+            sensitivity=models.Sensitivity.HEALTH,
+            confidence=0.95,
+
+            expires_at=None,
+            reason="Bounded past incident",
+            analyzer_source="ollama",
+            analysis_metadata={
+                "health_persistence_policy": memory_analyzer.HEALTH_ASSERTION_POLICY,
+                "verification_status": models.VerificationStatus.USER_ASSERTED.value,
+                "claim_kind": "assertion",
+                "subject": "user",
+                "should_store": True,
+                "speech_act": "episode",
+                "evidence_text": text,
+            },
+            scope=models.MemoryScope.EPISODE,
+        )
+
+        first = self.ingest([decision], event="fall-one", text=text)
+        second = self.ingest(
+            [replace(decision, value="Geçen ay salonda düştüm.")],
+            event="fall-two",
+            text="Geçen ay salonda düştüm.",
+        )
+
+        self.assertEqual(first["decisions"][0]["scope"], "episode")
+        self.assertEqual(second["decisions"][0]["scope"], "episode")
+        self.assertEqual(first["decisions"][0]["status"], "auto_applied")
+        self.assertEqual(self.db.query(models.MemoryEpisode).count(), 2)
         self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
         self.assertEqual(self.db.query(models.TemporaryMemory).count(), 0)
 
-    def test_rejected_sensitive_history_excluded_by_default_but_raw_log_retained(self):
+        context = main.build_context(
+            main.ContextRequest(
+                user_id="owner",
+                session_id="session",
+                query="Nerede düştüm?",
+            ),
+            self.db,
+        )
+        self.assertEqual(len(context["episodes"]), 2)
+        self.assertEqual(
+            set(context["episode_refs"]),
+            {first["decisions"][0]["applied_ref"], second["decisions"][0]["applied_ref"]},
+        )
+        self.assertEqual(context["episode_memory_budget"]["selected_item_count"], 2)
+
+    def test_expired_episode_is_not_returned(self):
+        created = main._write_memory_episode(
+            main.EpisodeCreate(
+                user_id="owner",
+                session_id="session",
+                category="incident",
+                key="old_fall",
+                value="Uzun zaman önce düştüm.",
+                occurred_at=self.start - timedelta(days=10),
+                retention_until=self.start - timedelta(seconds=1),
+            ),
+            self.db,
+        )
+        self.assertIsNotNone(self.db.get(models.MemoryEpisode, created["episode_id"]))
+        self.assertEqual(self.context()["episodes"], [])
+
+    def test_sensitive_temporary_memory_expires_without_confirmation(self):
+        result = self.ingest([self.decision(models.CandidateMemoryType.SENSITIVE, "symptom", "Belirti",
+                                           sensitive=True, expiry=self.start + timedelta(minutes=1))])
+        self.assertEqual(result["decisions"][0]["status"], "auto_applied")
+        self.assertEqual(len(self.context()["temporary_memories"]), 1)
+        self.assertEqual(
+            self.context(now=self.start + timedelta(minutes=1))["temporary_memories"],
+            [],
+        )
+        self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
+        self.assertEqual(self.db.query(models.TemporaryMemory).count(), 1)
+
+    def test_sensitive_history_is_available_without_confirmation(self):
         result = self.ingest([self.decision(models.CandidateMemoryType.SENSITIVE, "health", "Sağlık bilgisi",
                                            sensitive=True)])
-        main.reject_memory_candidate(result["decisions"][0]["candidate_id"],
-                                     main.CandidateDecisionRequest(user_id="owner"), self.db)
-        self.assertEqual(self.context()["recent_messages"], [])
-        self.assertEqual(len(self.context(include=True)["recent_messages"]), 1)
+        self.assertEqual(result["decisions"][0]["status"], "auto_applied")
+        self.assertEqual(len(self.context()["recent_messages"]), 1)
         self.assertEqual(main.list_conversation_messages("session", "owner", self.db)["message_count"], 1)
 
-    def test_sensitive_turn_linked_assistant_reply_is_hidden_with_parent(self):
+    def test_sensitive_turn_linked_assistant_reply_remains_in_window(self):
         result = self.ingest([self.decision(
             models.CandidateMemoryType.SENSITIVE, "health", "Başım ağrıyor.",
             sensitive=True,
         )], event="health-turn", text="Başım ağrıyor.")
-        self.assertEqual(result["decisions"][0]["status"], "pending")
+        self.assertEqual(result["decisions"][0]["status"], "auto_applied")
         main.create_conversation_message("session", main.ConversationMessageCreate(
             message_id="health-reply", user_id="owner",
             role=models.ConversationRole.ASSISTANT,
             content="Başınızın ağrıdığını anlıyorum.", parent_message_id="health-turn",
             occurred_at=self.start + timedelta(seconds=1),
         ), self.db)
-        self.assertEqual(self.context()["recent_messages"], [])
         self.assertEqual(
-            [message["role"] for message in self.context(include=True)["recent_messages"]],
+            [message["role"] for message in self.context()["recent_messages"]],
             ["user", "assistant"],
         )
 
@@ -279,7 +384,7 @@ class MemoryLifecycleTest(unittest.TestCase):
         result = self.ingest([self.decision(models.CandidateMemoryType.DISCARD, "bad", "Bad",
                                            expiry=self.start + timedelta(minutes=60))])
         self.assertEqual(result["decisions"][0]["status"], "ignored")
-        self.assertEqual(result["decisions"][0]["analysis"]["storage_destination"], "none")
+        self.assertEqual(result["decisions"][0]["analysis"]["storage_destination"], "discard")
         self.assertEqual(self.db.query(models.TemporaryMemory).count(), 0)
 
     def test_duplicate_event_with_changed_payload_is_rejected(self):
@@ -363,13 +468,15 @@ class MemoryLifecycleTest(unittest.TestCase):
         self.assertEqual(context["temporary_memories"], [])
         self.assertEqual(self.db.get(models.TemporaryMemory, row["memory_id"]).value_json["value"], value)
 
-    def test_direct_temporary_endpoint_requires_explicit_confirmation_for_sensitive_data(self):
-        with self.assertRaises(HTTPException) as error:
-            main.create_temporary_memory(main.TemporaryMemoryCreate(
-                user_id="owner", session_id="session", key="health", value="Belirti",
-                sensitivity=models.Sensitivity.HEALTH, occurred_at=self.start,
-                expires_at=self.start + timedelta(minutes=60)), self.db)
-        self.assertEqual(error.exception.status_code, 422)
+    def test_direct_temporary_endpoint_accepts_user_asserted_sensitive_data(self):
+        result = main.create_temporary_memory(main.TemporaryMemoryCreate(
+            user_id="owner", session_id="session", key="health", value="Belirti",
+            sensitivity=models.Sensitivity.HEALTH,
+            verification_status=models.VerificationStatus.USER_ASSERTED,
+            occurred_at=self.start,
+            expires_at=self.start + timedelta(minutes=60)), self.db)
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["temporary_memory"]["sensitivity"], "health")
 
     def test_blank_external_identifiers_are_rejected(self):
         constructors = (

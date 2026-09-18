@@ -78,7 +78,7 @@ class MemoryConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(
             plan.action,
-            ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION,
+            ConsolidationAction.SUPERSEDE,
         )
 
     def test_exclamation_is_not_treated_as_optional_sentence_punctuation(self) -> None:
@@ -99,7 +99,7 @@ class MemoryConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(
             plan.action,
-            ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION,
+            ConsolidationAction.SUPERSEDE,
         )
 
     def test_explicit_correction_supersedes_existing_slot(self) -> None:
@@ -114,7 +114,7 @@ class MemoryConsolidatorTest(unittest.TestCase):
         self.assertEqual(plan.action, ConsolidationAction.SUPERSEDE)
         self.assertEqual(plan.matched_fact_id, "wake-fact-001")
 
-    def test_different_value_without_correction_requires_confirmation(self) -> None:
+    def test_different_value_without_correction_supersedes(self) -> None:
         plan = resolve_consolidation(
             category="routine",
             key="morning_wake_time",
@@ -125,7 +125,7 @@ class MemoryConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(
             plan.action,
-            ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION,
+            ConsolidationAction.SUPERSEDE,
         )
 
     def test_extractor_update_hint_cannot_bypass_explicit_change_policy(self) -> None:
@@ -141,7 +141,7 @@ class MemoryConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(
             plan.action,
-            ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION,
+            ConsolidationAction.SUPERSEDE,
         )
 
     def test_extractor_same_hint_cannot_suppress_explicit_correction(self) -> None:
@@ -170,7 +170,7 @@ class MemoryConsolidatorTest(unittest.TestCase):
 
         self.assertEqual(
             plan.action,
-            ConsolidationAction.CONFLICT_REQUIRES_CONFIRMATION,
+            ConsolidationAction.SUPERSEDE,
         )
 
     def test_valid_extractor_reference_can_link_nonidentical_key(self) -> None:

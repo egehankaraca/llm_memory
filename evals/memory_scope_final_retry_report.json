@@ -1,0 +1,262 @@
+{
+  "generated_at": "2026-09-17T18:53:15.373731+00:00",
+  "analyzer": {
+    "provider": "ollama",
+    "available": true,
+    "model": "qwen3:8b",
+    "policy_version": "3",
+    "installed_models": [
+      "gemma4:12b",
+      "pentagi-qwen3-instruct:4b",
+      "pentagi-qwen3:4b",
+      "qwen3:4b-instruct",
+      "llama3.1:8b-instruct-q8_0",
+      "qwen3:8b",
+      "embeddinggemma:latest",
+      "gemma4:31b-cloud",
+      "qwen3:4b"
+    ],
+    "fallback_enabled": true,
+    "error": null
+  },
+  "dataset": "/Users/egehankaraca/Desktop/llm_memory/evals/memory_cases.jsonl",
+  "summary": {
+    "cases": 3,
+    "passed": 3,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "fallbacks": 0,
+    "guarded_cases": 0,
+    "errors": 0,
+    "elapsed_seconds": 31.978,
+    "average_seconds": 10.659,
+    "case_metrics": {
+      "memory_type": {
+        "matched": 3,
+        "cases": 3,
+        "rate": 1.0
+      },
+      "sensitivity": {
+        "matched": 3,
+        "cases": 3,
+        "rate": 1.0
+      },
+      "confirmation": {
+        "matched": 3,
+        "cases": 3,
+        "rate": 1.0
+      },
+      "destination": {
+        "matched": 3,
+        "cases": 3,
+        "rate": 1.0
+      }
+    },
+    "sensitive_recall": {
+      "matched": 0,
+      "expected": 0,
+      "rate": 1.0
+    },
+    "decision_metrics_by_type": {
+      "long_term": {
+        "matched": 1,
+        "expected": 1,
+        "rate": 1.0
+      },
+      "sensitive": {
+        "matched": 2,
+        "expected": 2,
+        "rate": 1.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "sensitive_011",
+      "passed": true,
+      "text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+      "tags": [
+        "sensitive",
+        "health",
+        "disability",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "health",
+            "extracted_category": "communication",
+            "extracted_key": "hearing_accessibility",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "extracted_temporal_scope": "unknown",
+            "temporal_scope_overridden_by_policy": true,
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Kullanıcının işitme cihazı olmadan konuşmaları anlamakta zorlanıyor olduğunu açık şekilde ifade etti. Bu, sağlık alanındaki bir geçici durum olarak sınıflandırılabilir."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 12.612,
+      "error": null
+    },
+    {
+      "id": "sensitive_012",
+      "passed": true,
+      "text": "Geçen yıl kalça ameliyatı oldum",
+      "tags": [
+        "sensitive",
+        "health",
+        "procedure",
+        "episode",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "episode"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "episode"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Geçen yıl kalça ameliyatı oldum",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Geçen yıl kalça ameliyatı oldum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "profile_fact",
+            "temporal_scope": "unknown",
+            "sensitivity_domain": "health",
+            "extracted_category": "episode",
+            "extracted_key": "past_surgery",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "evidence_quote_fallback": "high_similarity_health_quote",
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Kullanıcının geçmişiyle ilgili bir olay (kalça ameliyatı) belirtilmiştir, bu bir epizodik bilgi olarak saklanmalıdır."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 11.222,
+      "error": null
+    },
+    {
+      "id": "edge_002",
+      "passed": true,
+      "text": "Eskiden çay severdim ama artık içmiyorum",
+      "tags": [
+        "edge",
+        "correction",
+        "negative_preference"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Eskiden çay severdim ama artık içmiyorum",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Eskiden çay severdim ama artık içmiyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "preference",
+            "extracted_key": "tea_consumption",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Kullanıcının geçmişte çay içme alışkanlığından uzaklaştığını açık şekilde ifade etti."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.144,
+      "error": null
+    }
+  ]
+}

@@ -29,6 +29,9 @@ def aware_utc(value: datetime) -> datetime:
 
 
 def serialize_outbox_job(job: models.MemoryOutbox) -> dict[str, Any]:
+    created_at = aware_utc(job.created_at)
+    completed_at = aware_utc(job.completed_at) if job.completed_at else None
+    now = datetime.now(timezone.utc)
     return {
         "event_id": job.event_id,
         "user_id": job.user_id,
@@ -40,11 +43,21 @@ def serialize_outbox_job(job: models.MemoryOutbox) -> dict[str, Any]:
         "locked_at": aware_utc(job.locked_at).isoformat() if job.locked_at else None,
         "locked_by": job.locked_by,
         "last_error": job.last_error,
-        "completed_at": (
-            aware_utc(job.completed_at).isoformat() if job.completed_at else None
-        ),
-        "created_at": aware_utc(job.created_at).isoformat(),
+        "completed_at": completed_at.isoformat() if completed_at else None,
+        "created_at": created_at.isoformat(),
         "updated_at": aware_utc(job.updated_at).isoformat(),
+        "timing": {
+            "enqueue_to_completion_ms": (
+                round(max(0.0, (completed_at - created_at).total_seconds()) * 1000, 3)
+                if completed_at is not None
+                else None
+            ),
+            "current_age_ms": (
+                None
+                if completed_at is not None
+                else round(max(0.0, (now - created_at).total_seconds()) * 1000, 3)
+            ),
+        },
     }
 
 

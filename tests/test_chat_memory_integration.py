@@ -33,10 +33,6 @@ class InProcessMemory:
             if route.startswith("/v1/sessions/") and route.endswith("/messages"):
                 session = unquote(route[len("/v1/sessions/"):-len("/messages")])
                 return main.create_conversation_message(session, main.ConversationMessageCreate(**payload), self.db)
-            if route.startswith("/v1/candidates/"):
-                candidate_id, action = route[len("/v1/candidates/"):].rsplit(":", 1)
-                operation = main.confirm_memory_candidate if action == "confirm" else main.reject_memory_candidate
-                return operation(unquote(candidate_id), main.CandidateDecisionRequest(**payload), self.db)
         except HTTPException as exc:
             raise OrchestratorError(f"HTTP {exc.status_code}") from exc
         raise AssertionError(f"Unexpected request: {method} {path}")
@@ -46,7 +42,7 @@ def extracted(memory_type, category, key, value, *, sensitive=False, expires_at=
     return MemoryDecision(
         memory_type=memory_type, category=category, key=key, value=value,
         sensitivity=models.Sensitivity.HEALTH if sensitive else models.Sensitivity.NORMAL,
-        confidence=0.95, requires_confirmation=sensitive, expires_at=expires_at,
+        confidence=0.95,expires_at=expires_at,
         reason="Test extraction", analyzer_source="ollama",
     )
 
@@ -65,7 +61,11 @@ class ChatMemoryIntegrationTest(unittest.TestCase):
 
     def coordinator(self, user, session):
         return ConversationOrchestrator(
-            OrchestratorSettings(), user, session, memory_http=self.memory, ollama_http=self.ollama
+            OrchestratorSettings(async_memory_ingestion=False),
+            user,
+            session,
+            memory_http=self.memory,
+            ollama_http=self.ollama,
         )
 
     def tearDown(self):
@@ -144,32 +144,25 @@ class ChatMemoryIntegrationTest(unittest.TestCase):
         self.assertIn("parka gitmek", turn.prompt.messages[0]["content"])
         self.assertEqual(self.coordinator("chat-user", "another-session").context()["session"], {})
 
-    def test_sensitive_pending_can_only_enter_profile_after_explicit_confirmation(self):
+    def test_explicit_sensitive_statement_enters_profile_without_confirmation(self):
         health = extracted(models.CandidateMemoryType.SENSITIVE, "health", "hypertension", "Tansiyon hastasıyım", sensitive=True)
         with patch("main.analyze_message", return_value=[health]):
             turn = self.orchestrator.chat(health.value)
-        candidate_id = turn.pending_candidates[0]["candidate_id"]
-        self.assertEqual(self.orchestrator.context("tansiyon")["profile"], {})
-        with self.assertRaisesRegex(OrchestratorError, "404"):
-            self.coordinator("other-user", "other-session").resolve_candidate(candidate_id, confirm=True)
-        result = self.orchestrator.resolve_candidate(candidate_id, confirm=True)
-        self.assertEqual(result["status"], "confirmed")
+        self.assertEqual(turn.decisions[0]["status"], "auto_applied")
         self.assertEqual(self.orchestrator.context("tansiyon")["profile"]["health"]["hypertension"], health.value)
-        # Consent commands are out-of-band; no new extraction/chat message is created.
         self.assertEqual(self.db.query(models.ConversationMessage).count(), 2)
 
-    def test_conflict_rejection_keeps_previous_active_fact(self):
+    def test_new_explicit_value_supersedes_previous_active_fact(self):
         for hour in (7, 8):
             routine = extracted(models.CandidateMemoryType.LONG_TERM, "routine", "tennis_time", f"Cumartesi saat {hour}'de tenis oynarım")
             with patch("main.analyze_message", return_value=[routine]):
                 turn = self.orchestrator.chat(routine.value)
-        self.assertEqual(turn.pending_candidates[0]["consolidation_action"], "conflict_requires_confirmation")
-        candidate_id = turn.pending_candidates[0]["candidate_id"]
-        self.orchestrator.resolve_candidate(candidate_id, confirm=False)
+        self.assertEqual(turn.decisions[0]["consolidation_action"], "supersede")
+        self.assertEqual(turn.decisions[0]["status"], "auto_applied")
         facts = self.db.query(models.MemoryFact).filter(models.MemoryFact.status == models.FactStatus.ACTIVE).all()
         self.assertEqual(len(facts), 1)
-        self.assertIn("7'de", facts[0].value_json["value"])
-        self.assertEqual(self.db.query(models.MemoryCandidate).filter(models.MemoryCandidate.status == models.CandidateStatus.REJECTED).count(), 1)
+        self.assertIn("8'de", facts[0].value_json["value"])
+        self.assertEqual(self.db.query(models.MemoryFact).count(), 2)
 
     def test_actual_policy_prevents_misclassified_question_from_changing_database(self):
         routine = extracted(models.CandidateMemoryType.LONG_TERM, "routine", "tennis_time", "Her cumartesi saat 7'de tenis oynarım")
@@ -215,7 +208,7 @@ class ChatMemoryIntegrationTest(unittest.TestCase):
             self.assertIsNotNone(last_answer)
             self.assertEqual(last_answer.content, answer)
 
-    def test_actual_policy_blocks_mislabeled_address_and_emergency_contact(self):
+    def test_actual_policy_auto_applies_mislabeled_address_and_emergency_contact(self):
         for text in [
             "Adresim Bahar Sokak 12 numara, Kadıköy",
             "Acil durumda kızım Ayşe’yi 0555 123 45 67 numarasından ara",
@@ -228,7 +221,7 @@ class ChatMemoryIntegrationTest(unittest.TestCase):
             }]})
             with patch.dict(os.environ, {"MEMORY_ANALYZER_PROVIDER": "ollama"}), patch.object(memory_analyzer, "_ollama_request", return_value=extraction):
                 turn = self.orchestrator.chat(text)
-            self.assertEqual(len(turn.pending_candidates), 1)
-            self.assertEqual(turn.pending_candidates[0]["memory_type"], "sensitive")
-            self.assertTrue(turn.pending_candidates[0]["analysis"]["sensitivity_overridden_by_policy"])
-            self.assertEqual(self.db.query(models.MemoryFact).count(), 0)
+            self.assertEqual(turn.decisions[0]["memory_type"], "sensitive")
+            self.assertEqual(turn.decisions[0]["status"], "auto_applied")
+            self.assertTrue(turn.decisions[0]["analysis"]["sensitivity_overridden_by_policy"])
+        self.assertEqual(self.db.query(models.MemoryFact).count(), 2)

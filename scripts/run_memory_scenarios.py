@@ -308,14 +308,16 @@ class ScenarioRunner:
             )
             expected = EXPECTED_TYPES[index]
             require({item.get("memory_type") for item in decisions} == {expected}, f"Expected {expected}, observed {[item.get('memory_type') for item in decisions]}")
-            status = "pending" if expected == "sensitive" else "ignored" if expected == "discard" else "auto_applied"
-            require(all(item.get("status") == status for item in decisions), f"Expected candidate status {status}")
             if expected == "sensitive":
-                require(all(item.get("sensitivity") == "health" and item.get("requires_confirmation") for item in decisions), "Health information must await explicit confirmation")
+                require(all(item.get("sensitivity") == "health" for item in decisions), "Health sensitivity was lost")
+                require(all(item.get("status") == "auto_applied" for item in decisions), "Health statements must auto-apply")
                 if index == 9:
                     require(all(item.get("expires_at") is None for item in decisions), "Persistent medication routine received temporary expiry")
                 else:
                     require(all(aware_datetime(item.get("expires_at")) > aware_datetime(payload["occurred_at"]) for item in decisions), "Current symptom needs finite future expiry")
+            else:
+                status = "ignored" if expected == "discard" else "auto_applied"
+                require(all(item.get("status") == status for item in decisions), f"Expected candidate status {status}")
             if expected == "short_term":
                 require(all(aware_datetime(item.get("expires_at")) > aware_datetime(payload["occurred_at"]) for item in decisions), "Short-term intent needs finite future expiry")
             return {"input_number": index + 1, "text": payload["text"], "expected_type": expected, "decisions": decisions}
@@ -339,10 +341,12 @@ class ScenarioRunner:
             facts = self.client.request("GET", f"/v1/users/{user_id}/memories").get("items", [])
             coffee = [fact for fact in facts if "kahve" in json.dumps(fact.get("value"), ensure_ascii=False).casefold()]
             tennis = [fact for fact in facts if "tenis" in json.dumps(fact.get("value"), ensure_ascii=False).casefold()]
+            medication = [fact for fact in facts if "tansiyon ilac" in json.dumps(fact.get("value"), ensure_ascii=False).casefold()]
             require(len(coffee) == 1, "Coffee repeat did not consolidate to one active fact")
             require(len(tennis) == 1 and "8" in json.dumps(tennis[0].get("value")), "Tennis correction did not produce one active 8 o'clock fact")
-            require(not any(fact.get("sensitivity") == "health" for fact in facts), "Unconfirmed health information leaked into active profile")
-            return {"active_coffee_count": len(coffee), "active_tennis_count": len(tennis), "tennis_value": tennis[0]["value"]}
+            require(len(medication) == 1, "Direct medication assertion was not stored")
+            require(medication[0].get("verification_status") == "user_asserted", "Medication assertion was not marked user_asserted")
+            return {"active_coffee_count": len(coffee), "active_tennis_count": len(tennis), "active_medication_count": len(medication), "tennis_value": tennis[0]["value"]}
 
         def temporary_collision_check() -> dict:
             temporary = self.client.request(
@@ -366,18 +370,26 @@ class ScenarioRunner:
             raw_texts = [item.get("content") for item in raw]
             require(raw_texts == list(SCENARIO_TEXTS[-10:]), "Analyzer ingestion did not retain the newest raw 10-message suffix")
             context = self.context(user_id=user_id, session_id=session_id)
-            hidden = set(SCENARIO_TEXTS[9:11])
-            require(not hidden.intersection(item.get("content") for item in context.get("recent_messages", [])), "Pending sensitive user text leaked into default context")
-            require(context.get("history_policy", {}).get("include_unconfirmed_sensitive_history") is False, "Default sensitive-history policy was not explicit")
-            trusted = self.context(user_id=user_id, session_id=session_id, include_unconfirmed_sensitive_history=True)
-            require(hidden.issubset({item.get("content") for item in trusted.get("recent_messages", [])}), "Explicit trusted-backend raw-history opt-in did not restore pending text")
+            require(
+                all(
+                    item["response"]["decisions"][0].get("status") != "pending"
+                    for item in ingests
+                ),
+                "A confirmation-gated candidate was produced",
+            )
             temporary = self.client.request(
                 "GET", f"/v1/sessions/{session_id}/temporary-memories?" + parse.urlencode({"user_id": user_id}),
             ).get("temporary_memories", [])
             serialized_temporary = json.dumps(temporary, ensure_ascii=False)
-            require(not any(text in serialized_temporary for text in hidden), "Unconfirmed health data leaked into temporary memory")
-            return {"raw_window_count": len(raw), "default_pending_text_hidden": True,
-                    "explicit_opt_in_restored": True, "pending_health_in_temporary": False}
+            headache_decision = ingests[10]["response"]["decisions"][0]
+            require(headache_decision.get("status") == "auto_applied", "Direct symptom assertion was not auto-applied")
+            require(SCENARIO_TEXTS[10] in serialized_temporary, "Direct symptom assertion was not stored with TTL")
+            return {
+                "raw_window_count": len(raw),
+                "confirmation_flow_disabled": True,
+                "user_asserted_symptom_in_temporary": True,
+                "context_message_count": len(context.get("recent_messages", [])),
+            }
 
         def replay_check() -> dict:
             last = next((item for item in reversed(ingests) if item["index"] == 14), None)
@@ -389,7 +401,7 @@ class ScenarioRunner:
 
         self.check("active coffee deduplication and tennis correction", profile_check, mode="analyzer")
         self.check("unrelated temporary intents survive key collisions", temporary_collision_check, mode="analyzer")
-        self.check("pending sensitive raw-history policy", privacy_check, mode="analyzer")
+        self.check("automatic protected-memory policy", privacy_check, mode="analyzer")
         self.check("interaction event_id replay", replay_check, mode="analyzer")
 
     def report(self) -> dict:

@@ -1,6 +1,7 @@
 alembic>=1.14,<2
 fastapi>=0.115,<1
 psycopg2-binary>=2.9,<3
+pgvector>=0.4,<1
 pydantic>=2,<3
 SQLAlchemy>=2,<3
 uvicorn>=0.30,<1

@@ -63,6 +63,21 @@ def attributed_context_payload():
     return context
 
 
+def emergency_context_payload():
+    context = attributed_context_payload()
+    context["profile_facts"] = [{
+        "fact_id": "emergency-1", "owner_user_id": "test-user",
+        "category": "emergency_contact", "key": "primary_emergency_contact",
+        "value": "Acil durumda kızım Ayşe'yi 0555 123 45 67 numarasından ara",
+        "provenance": {
+            "source_event_id": "event-emergency",
+            "verification_status": "user_confirmed",
+            "confidence": 1.0,
+        },
+    }]
+    return context
+
+
 class ConversationOrchestratorTest(unittest.TestCase):
     def setUp(self):
         self.memory = Mock(spec=JsonHttpClient)
@@ -70,7 +85,8 @@ class ConversationOrchestratorTest(unittest.TestCase):
         self.memory.request.side_effect = [context_payload(), decision_payload(), {"status": "created"}]
         self.ollama.request.return_value = reply_payload()
         self.orchestrator = ConversationOrchestrator(
-            OrchestratorSettings(), "test-user", "test-session",
+            OrchestratorSettings(async_memory_ingestion=False),
+            "test-user", "test-session",
             memory_http=self.memory, ollama_http=self.ollama,
         )
 
@@ -106,23 +122,34 @@ class ConversationOrchestratorTest(unittest.TestCase):
         self.assertLessEqual(turn.user_occurred_at, turn.assistant_occurred_at)
         self.assertIsNone(self.orchestrator.pending_turn)
 
-    def test_pending_candidate_is_not_automatically_confirmed(self):
-        pending = decision_payload()
-        pending["decisions"][0].update({"memory_type": "sensitive", "status": "pending", "requires_confirmation": True})
-        self.memory.request.side_effect = [context_payload(), pending, {"status": "created"}]
-        turn = self.orchestrator.chat("Evet")
-        self.assertEqual(len(turn.pending_candidates), 1)
-        self.assertFalse(any(":confirm" in call.args[1] for call in self.memory.request.call_args_list))
+    def test_emergency_bypasses_reply_model_but_keeps_memory_persistence(self):
+        self.memory.request.side_effect = [
+            emergency_context_payload(), decision_payload(), {"status": "created"},
+        ]
+        self.ollama.reset_mock()
 
-    def test_explicit_consent_command_bypasses_llm_and_uses_user_identity(self):
+        turn = self.orchestrator.chat("Banyoda düştüm, her yer kan oldu")
+
+        self.ollama.request.assert_not_called()
+        self.assertEqual(turn.model_stats["response_mode"], "emergency_orchestrator")
+        self.assertEqual(turn.emergency_action.action, "call_simulated")
+        self.assertEqual(turn.emergency_action.contact_name, "Ayşe")
+        self.assertIn("gerçek arama yapmaz", turn.reply)
+        self.assertEqual(
+            [call.args[1] for call in self.memory.request.call_args_list],
+            [
+                "/v1/context:build",
+                "/v1/interactions:process",
+                "/v1/sessions/test-session/messages",
+            ],
+        )
+
+    def test_confirmation_commands_are_removed(self):
         self.memory.request.side_effect = None
-        for command, status in [("/confirm", "confirmed"), ("/reject", "rejected")]:
+        for command in ("/confirm candidate-1", "/reject candidate-1", "/pending"):
             with self.subTest(command=command), patch("sys.stdout", new=io.StringIO()):
-                self.memory.request.return_value = {"status": status}
-                handle_command(self.orchestrator, f"{command} candidate-1", False)
-                self.assertEqual(self.memory.request.call_args.args, (
-                    "POST", f"/v1/candidates/candidate-1:{command[1:]}", {"user_id": "test-user"},
-                ))
+                self.assertTrue(handle_command(self.orchestrator, command, False))
+                self.memory.request.assert_not_called()
         self.ollama.request.assert_not_called()
 
     def test_generation_failure_does_not_write_memory(self):
@@ -188,6 +215,20 @@ class ConversationOrchestratorTest(unittest.TestCase):
             self.assertEqual(os.environ["OLLAMA_MODEL"], "qwen3:8b")
             self.assertEqual(settings.num_ctx, 2048)
 
+    def test_async_memory_ingestion_is_the_default_and_can_be_disabled(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(
+                OrchestratorSettings.from_environment().async_memory_ingestion
+            )
+        with patch.dict(
+            os.environ,
+            {"MEMORY_ASYNC_INGESTION": "false"},
+            clear=True,
+        ):
+            self.assertFalse(
+                OrchestratorSettings.from_environment().async_memory_ingestion
+            )
+
     def test_generation_options_are_shared_defaults_but_fresh_objects(self):
         settings = OrchestratorSettings(model="qwen3:8b", num_ctx=2048, num_predict=256)
         expected = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0,
@@ -220,7 +261,10 @@ class ConversationOrchestratorTest(unittest.TestCase):
                 self.assertEqual(OrchestratorSettings(model=model).generation_options, expected)
 
     def test_gemma4_chat_uses_reply_sampling_without_changing_extractor(self):
-        settings = OrchestratorSettings(model="gemma4:12b")
+        settings = OrchestratorSettings(
+            model="gemma4:12b",
+            async_memory_ingestion=False,
+        )
         orchestrator = ConversationOrchestrator(
             settings, "test-user", "test-session",
             memory_http=self.memory, ollama_http=self.ollama,

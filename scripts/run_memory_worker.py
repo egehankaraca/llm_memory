@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from memory_worker import default_worker_id, process_one_outbox_job  # noqa: E402
+from memory_worker import default_worker_id, process_one_memory_job  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,17 +28,21 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("poll-seconds >= 0.05 and lease-seconds >= 1 are required")
 
     print(f"Memory worker started: {args.worker_id}", flush=True)
-    while True:
-        result = process_one_outbox_job(
-            worker_id=args.worker_id,
-            lease_seconds=args.lease_seconds,
-        )
-        if result is not None:
-            print(json.dumps(result, ensure_ascii=False), flush=True)
-        if args.once:
-            return 1 if result and result.get("error") else 0
-        if result is None:
-            time.sleep(args.poll_seconds)
+    try:
+        while True:
+            result = process_one_memory_job(
+                worker_id=args.worker_id,
+                lease_seconds=args.lease_seconds,
+            )
+            if result is not None:
+                print(json.dumps(result, ensure_ascii=False), flush=True)
+            if args.once:
+                return 1 if result and result.get("error") else 0
+            if result is None:
+                time.sleep(args.poll_seconds)
+    except KeyboardInterrupt:
+        print("Memory worker stopped.", flush=True)
+        return 0
 
 
 if __name__ == "__main__":

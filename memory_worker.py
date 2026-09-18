@@ -19,6 +19,7 @@ from memory_outbox import (
     fail_outbox_job,
     serialize_outbox_job,
 )
+from memory_embeddings import process_one_embedding_job
 
 
 def default_worker_id() -> str:
@@ -109,3 +110,30 @@ def process_one_outbox_job(
         raise
     finally:
         db.close()
+
+
+def process_one_memory_job(
+    *,
+    session_factory: sessionmaker[Session] = SessionLocal,
+    worker_id: str,
+    lease_seconds: int = 300,
+    base_retry_seconds: int = 2,
+) -> dict[str, Any] | None:
+    """Process extraction first, then one pending fact-embedding job."""
+    extraction = process_one_outbox_job(
+        session_factory=session_factory,
+        worker_id=worker_id,
+        lease_seconds=lease_seconds,
+        base_retry_seconds=base_retry_seconds,
+    )
+    if extraction is not None:
+        return {"job_type": "extraction", **extraction}
+    embedding = process_one_embedding_job(
+        session_factory=session_factory,
+        worker_id=worker_id,
+        lease_seconds=lease_seconds,
+        base_retry_seconds=base_retry_seconds,
+    )
+    if embedding is not None:
+        return {"job_type": "embedding", **embedding}
+    return None

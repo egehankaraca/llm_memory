@@ -1,0 +1,763 @@
+{
+  "generated_at": "2026-09-17T13:15:50.257576+00:00",
+  "analyzer": {
+    "provider": "ollama",
+    "available": true,
+    "model": "qwen3:4b",
+    "policy_version": "3",
+    "installed_models": [
+      "gemma4:12b",
+      "pentagi-qwen3-instruct:4b",
+      "pentagi-qwen3:4b",
+      "qwen3:4b-instruct",
+      "llama3.1:8b-instruct-q8_0",
+      "qwen3:8b",
+      "embeddinggemma:latest",
+      "gemma4:31b-cloud",
+      "qwen3:4b"
+    ],
+    "fallback_enabled": true,
+    "error": null
+  },
+  "dataset": "/Users/egehankaraca/Desktop/llm_memory/evals/memory_cases.jsonl",
+  "summary": {
+    "cases": 10,
+    "passed": 2,
+    "failed": 8,
+    "pass_rate": 0.2,
+    "fallbacks": 0,
+    "guarded_cases": 2,
+    "errors": 0,
+    "elapsed_seconds": 53.296,
+    "average_seconds": 5.33,
+    "case_metrics": {
+      "memory_type": {
+        "matched": 6,
+        "cases": 10,
+        "rate": 0.6
+      },
+      "sensitivity": {
+        "matched": 4,
+        "cases": 10,
+        "rate": 0.4
+      },
+      "confirmation": {
+        "matched": 8,
+        "cases": 10,
+        "rate": 0.8
+      },
+      "destination": {
+        "matched": 5,
+        "cases": 10,
+        "rate": 0.5
+      }
+    },
+    "sensitive_recall": {
+      "matched": 0,
+      "expected": 0,
+      "rate": 1.0
+    },
+    "decision_metrics_by_type": {
+      "long_term": {
+        "matched": 5,
+        "expected": 6,
+        "rate": 0.8333
+      },
+      "sensitive": {
+        "matched": 3,
+        "expected": 5,
+        "rate": 0.6
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "long_001",
+      "passed": false,
+      "text": "Çayımı ince belli bardakta ve açık içerim",
+      "tags": [
+        "long_term",
+        "preference",
+        "implicit",
+        "turkish"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        },
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "ince belli bardakta",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Çayımı ince belli bardakta",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "drink_size",
+            "extracted_key": "size",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, preference, persistent, none."
+        },
+        {
+          "value": {
+            "type": "user_state",
+            "description": "açık içerim",
+            "source_text": "Çayımı ince belli bardakta ve açık içerim",
+            "target": "current_session"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "açık içerim",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "none",
+            "extracted_category": "drink_state",
+            "extracted_key": "state",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, current_state, current_session, none."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": false,
+        "confirmation": false,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 8.277,
+      "error": null
+    },
+    {
+      "id": "long_003",
+      "passed": false,
+      "text": "Bana bundan sonra Ahmet Bey diye hitap et",
+      "tags": [
+        "long_term",
+        "communication",
+        "explicit"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "personal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Ahmet Bey",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Bana bundan sonra Ahmet Bey diye hitap et",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "preferred_name",
+            "extracted_key": "preferred_name",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, preference, persistent, none."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": false,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 3.825,
+      "error": null
+    },
+    {
+      "id": "long_006",
+      "passed": true,
+      "text": "Kızımın adı Ayşe",
+      "tags": [
+        "long_term",
+        "relationship",
+        "personal"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "personal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "personal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Ayşe",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Kızımın adı Ayşe",
+            "should_store": true,
+            "subject": "related_person",
+            "speech_act": "profile_fact",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "personal",
+            "extracted_category": "name",
+            "extracted_key": "name",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, related_person, profile_fact, persistent, personal."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 3.621,
+      "error": null
+    },
+    {
+      "id": "long_011",
+      "passed": false,
+      "text": "Gözlüğümü komodinin üstünde tutarım",
+      "tags": [
+        "long_term",
+        "object_location",
+        "habit"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "location",
+          "requires_confirmation": true,
+          "destination": "pending"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "komodinin üstünde",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Gözlüğümü komodinin üstünde tutarım",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "location",
+            "extracted_key": "glasses_location",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "effective_sensitivity_domain": "location",
+            "sensitivity_overridden_by_policy": true,
+            "protected_evidence_hint": null
+          },
+          "reason": "Policy: Hassas alan açık kullanıcı onayı olmadan kalıcılaştırılamaz. Extractor: Semantik sinyaller: assertion, user, preference, persistent, none."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": false,
+        "confirmation": false,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [
+        "sensitivity_override"
+      ],
+      "used_fallback": false,
+      "elapsed_seconds": 3.948,
+      "error": null
+    },
+    {
+      "id": "long_012",
+      "passed": false,
+      "text": "Benimle konuşurken kısa cümleler kullan ve yavaş konuş",
+      "tags": [
+        "long_term",
+        "communication",
+        "explicit"
+      ],
+      "expected": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "personal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Benimle konuşurken kısa cümleler kullan ve yavaş konuş",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Benimle konuşurken kısa cümleler kullan ve yavaş konuş",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "communication_preference",
+            "extracted_key": "short_sentences_and_slow_speech",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "extraction_retry_count": 1,
+            "extraction_retry_failed": false,
+            "extraction_retry_reasons": [
+              "unsupported_value"
+            ],
+            "initial_claim_kinds": [
+              "assertion"
+            ]
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, preference, persistent, none."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": false,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [
+        "extraction_retry"
+      ],
+      "used_fallback": false,
+      "elapsed_seconds": 8.883,
+      "error": null
+    },
+    {
+      "id": "sensitive_004",
+      "passed": false,
+      "text": "Fındık yediğimde nefesim daralıyor",
+      "tags": [
+        "sensitive",
+        "health",
+        "allergy",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "nefesim daralıyor",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Fındık yediğimde nefesim daralıyor",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "health",
+            "extracted_category": "symptom",
+            "extracted_key": "breathing_difficulty_with_pineapple",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Semantik sinyaller: assertion, user, current_state, current_session, health."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 4.259,
+      "error": null
+    },
+    {
+      "id": "sensitive_010",
+      "passed": false,
+      "text": "Dün banyoda dengemi kaybedip düştüm",
+      "tags": [
+        "sensitive",
+        "health",
+        "fall",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "dengemi kaybedip düştüm",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Dün banyoda dengemi kaybedip düştüm",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "today",
+            "sensitivity_domain": "health",
+            "extracted_category": "fall",
+            "extracted_key": "fall",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Semantik sinyaller: assertion, user, current_state, today, health."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 3.993,
+      "error": null
+    },
+    {
+      "id": "sensitive_011",
+      "passed": false,
+      "text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+      "tags": [
+        "sensitive",
+        "health",
+        "disability",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": {
+            "type": "user_state",
+            "description": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+            "source_text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+            "target": "current_session"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "key_fallback_used": true
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, current_state, current_session, none."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": false,
+        "confirmation": true,
+        "destination": false
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 4.707,
+      "error": null
+    },
+    {
+      "id": "sensitive_012",
+      "passed": true,
+      "text": "Geçen yıl kalça ameliyatı oldum",
+      "tags": [
+        "sensitive",
+        "health",
+        "procedure",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": "Geçen yıl kalça ameliyatı oldum",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Geçen yıl kalça ameliyatı oldum",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "profile_fact",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "health",
+            "extracted_category": "surgery",
+            "extracted_key": "surgery_history",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "health_persistence_policy": "direct_user_assertion_v1",
+            "verification_status": "user_asserted"
+          },
+          "reason": "Policy: Doğrudan kullanıcı sağlık beyanı user_asserted olarak saklanabilir; bu klinik doğrulama değildir. Extractor: Semantik sinyaller: assertion, user, profile_fact, persistent, health."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": true,
+        "sensitivity": true,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 4.266,
+      "error": null
+    },
+    {
+      "id": "edge_004",
+      "passed": false,
+      "text": "Dizim yürürken sızlıyor ama Türk sanat müziği dinlemek hoşuma gidiyor",
+      "tags": [
+        "edge",
+        "multiple_decisions",
+        "sensitive_and_long",
+        "user_asserted"
+      ],
+      "expected": [
+        {
+          "memory_type": "sensitive",
+          "sensitivity": "health",
+          "requires_confirmation": false,
+          "destination": "session"
+        },
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "actual": [
+        {
+          "memory_type": "short_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "session"
+        },
+        {
+          "memory_type": "long_term",
+          "sensitivity": "normal",
+          "requires_confirmation": false,
+          "destination": "profile"
+        }
+      ],
+      "decision_details": [
+        {
+          "value": {
+            "type": "user_state",
+            "description": "Dizim yürürken sızlıyor",
+            "source_text": "Dizim yürürken sızlıyor ama Türk sanat müziği dinlemek hoşuma gidiyor",
+            "target": "current_session"
+          },
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Dizim yürürken sızlıyor",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "current_state",
+            "temporal_scope": "current_session",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "none",
+            "matched_memory_id": null,
+            "relation_to_existing": "none",
+            "key_fallback_used": true
+          },
+          "reason": "Policy: Geçici kullanıcı niyeti veya durumu session memory olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, current_state, current_session, none."
+        },
+        {
+          "value": "Türk sanat müziği",
+          "analysis": {
+            "policy_version": "3",
+            "claim_kind": "assertion",
+            "evidence_text": "Türk sanat müziği dinlemek hoşuma gidiyor",
+            "should_store": true,
+            "subject": "user",
+            "speech_act": "preference",
+            "temporal_scope": "persistent",
+            "sensitivity_domain": "none",
+            "extracted_category": "none",
+            "extracted_key": "music_preference",
+            "matched_memory_id": null,
+            "relation_to_existing": "none"
+          },
+          "reason": "Policy: Kalıcı profil, tercih veya rutin long-term olarak yönlendirildi. Extractor: Semantik sinyaller: assertion, user, preference, persistent, none."
+        }
+      ],
+      "dimension_matches": {
+        "memory_type": false,
+        "sensitivity": false,
+        "confirmation": true,
+        "destination": true
+      },
+      "sources": [
+        "ollama"
+      ],
+      "policy_guards": [],
+      "used_fallback": false,
+      "elapsed_seconds": 7.517,
+      "error": null
+    }
+  ]
+}

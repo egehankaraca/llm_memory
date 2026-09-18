@@ -27,7 +27,7 @@ def long_term_decision(text: str) -> MemoryDecision:
         value=text,
         sensitivity=models.Sensitivity.NORMAL,
         confidence=0.95,
-        requires_confirmation=False,
+
         expires_at=None,
         reason="Test routine",
         analyzer_source="ollama",
@@ -187,6 +187,13 @@ class MemoryOutboxTest(unittest.TestCase):
             )
         status = main.interaction_status("event-status", "user-1", self.db)
         self.assertEqual(status["job"]["status"], "completed")
+        self.assertIsNotNone(
+            status["job"]["timing"]["enqueue_to_completion_ms"]
+        )
+        self.assertGreaterEqual(
+            status["job"]["timing"]["enqueue_to_completion_ms"],
+            0,
+        )
         self.assertEqual(status["decisions"][0]["memory_type"], "long_term")
 
 

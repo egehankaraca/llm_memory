@@ -57,6 +57,10 @@ class OllamaAnalyzerTest(unittest.TestCase):
                 "OLLAMA_TIMEOUT_SECONDS": "1",
                 "MEMORY_TEMPORARY_TTL_MINUTES": "60",
                 "MEMORY_TIMEZONE": "Europe/Istanbul",
+                # Most tests below exercise the legacy opt-in repair path
+                # explicitly. Production now defaults this expensive second
+                # model call to off; dedicated tests cover that default.
+                "MEMORY_SEMANTIC_RETRY": "true",
             },
         )
         self.environment.start()
@@ -173,7 +177,7 @@ class OllamaAnalyzerTest(unittest.TestCase):
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SHORT_TERM)
         self.assertEqual(decisions[0].analyzer_source, "rules_fallback")
 
-    def test_health_domain_is_forced_to_sensitive_pending(self) -> None:
+    def test_direct_health_assertion_is_sensitive_but_user_asserted(self) -> None:
         decisions = self.analyze_mocked(
             extracted_item(
                 speech_act="current_state",
@@ -187,12 +191,15 @@ class OllamaAnalyzerTest(unittest.TestCase):
 
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SENSITIVE)
         self.assertEqual(decisions[0].sensitivity, models.Sensitivity.HEALTH)
-        self.assertTrue(decisions[0].requires_confirmation)
         self.assertEqual(decisions[0].expires_at, self.occurred_at + timedelta(hours=1))
         self.assertEqual(decisions[0].analysis_metadata["temporal_scope"], "current_session")
         self.assertEqual(decisions[0].analysis_metadata["extracted_temporal_scope"], "unknown")
+        self.assertEqual(
+            decisions[0].analysis_metadata["verification_status"],
+            "user_asserted",
+        )
 
-    def test_explicit_current_symptom_requires_confirmation_not_permanent_fact(self) -> None:
+    def test_explicit_current_symptom_is_user_asserted_temporary_memory(self) -> None:
         for text in ["başım ağrıyor", "Mideme kramp giriyor", "Kendimi halsiz hissediyorum"]:
             with self.subTest(text=text):
                 decisions = self.analyze_mocked(extracted_item(
@@ -202,7 +209,6 @@ class OllamaAnalyzerTest(unittest.TestCase):
                 ), text=text)
                 self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SENSITIVE)
                 self.assertEqual(decisions[0].sensitivity, models.Sensitivity.HEALTH)
-                self.assertTrue(decisions[0].requires_confirmation)
                 self.assertEqual(decisions[0].expires_at, self.occurred_at + timedelta(hours=1))
 
     def test_semantically_unasserted_symptom_is_not_resurrected_by_sensitive_terms(self) -> None:
@@ -217,7 +223,7 @@ class OllamaAnalyzerTest(unittest.TestCase):
                 self.assertEqual(decisions[0].analysis_metadata["evidence_guard"], "not_asserted")
 
 
-    def test_credential_domain_is_forced_to_sensitive_pending(self) -> None:
+    def test_credential_domain_is_discarded(self) -> None:
         decisions = self.analyze_mocked(
             extracted_item(
                 speech_act="profile_fact",
@@ -228,9 +234,9 @@ class OllamaAnalyzerTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SENSITIVE)
-        self.assertEqual(decisions[0].sensitivity, models.Sensitivity.CREDENTIAL)
-        self.assertTrue(decisions[0].requires_confirmation)
+        self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.DISCARD)
+        self.assertEqual(decisions[0].sensitivity, models.Sensitivity.NORMAL)
+        self.assertEqual(decisions[0].analysis_metadata["evidence_guard"], "protected_secret_discarded")
 
     def test_category_policy_corrects_missed_medication_domain(self) -> None:
         decisions = self.analyze_mocked(
@@ -247,9 +253,62 @@ class OllamaAnalyzerTest(unittest.TestCase):
         self.assertEqual(decisions[0].sensitivity, models.Sensitivity.HEALTH)
         self.assertEqual(decisions[0].analyzer_source, "ollama")
         self.assertIsNone(decisions[0].expires_at)
+        self.assertEqual(
+            decisions[0].analysis_metadata["verification_status"],
+            "user_asserted",
+        )
         self.assertTrue(
             decisions[0].analysis_metadata["sensitivity_overridden_by_policy"]
         )
+
+    def test_medication_clock_time_is_user_asserted_not_dosage(self) -> None:
+        text = "Tansiyon ilacımı her sabah saat 8'de alırım"
+        decision = self.analyze_mocked(extracted_item(
+            speech_act="habit", temporal_scope="persistent",
+            sensitivity_domain="health", category="medication",
+            key="morning_medication_time", value=text, evidence_text=text,
+        ), text=text)[0]
+
+        self.assertEqual(decision.memory_type, models.CandidateMemoryType.SENSITIVE)
+        self.assertEqual(decision.analysis_metadata["verification_status"], "user_asserted")
+        self.assertNotIn("health_review_reason", decision.analysis_metadata)
+
+    def test_explicit_medication_dose_is_user_asserted(self) -> None:
+        text = "Akşam hapından iki tane alırım"
+        decision = self.analyze_mocked(extracted_item(
+            speech_act="habit", temporal_scope="persistent",
+            sensitivity_domain="health", category="medication",
+            key="evening_medication_dose", value=text, evidence_text=text,
+        ), text=text)[0]
+
+        self.assertEqual(decision.analysis_metadata["verification_status"], "user_asserted")
+
+    def test_uncertain_medication_claim_is_discarded(self) -> None:
+        text = "Galiba ilacımı sabah alıyorum"
+        for claim_kind in ["inferred", "ambiguous"]:
+            with self.subTest(claim_kind=claim_kind):
+                decision = self.analyze_mocked(extracted_item(
+                    should_store=True, claim_kind=claim_kind,
+                    speech_act="habit", temporal_scope="persistent",
+                    sensitivity_domain="health", category="medication",
+                    key="medication_schedule", value=text, evidence_text=text,
+                ), text=text)[0]
+                self.assertEqual(
+                    decision.memory_type,
+                    models.CandidateMemoryType.DISCARD,
+                )
+
+    def test_explicit_medication_schedule_correction_is_user_asserted(self) -> None:
+        text = "Artık tansiyon ilacımı her sabah saat 9'da alıyorum"
+        decision = self.analyze_mocked(extracted_item(
+            speech_act="habit", temporal_scope="persistent",
+            sensitivity_domain="health", category="medication",
+            key="morning_medication_time", value=text, evidence_text=text,
+            matched_memory_id="existing-medication",
+            relation_to_existing="update",
+        ), text=text)[0]
+
+        self.assertEqual(decision.analysis_metadata["verification_status"], "user_asserted")
 
     def test_communication_category_is_personal_but_not_confirmation_gated(self) -> None:
         decisions = self.analyze_mocked(
@@ -265,7 +324,6 @@ class OllamaAnalyzerTest(unittest.TestCase):
 
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.LONG_TERM)
         self.assertEqual(decisions[0].sensitivity, models.Sensitivity.PERSONAL)
-        self.assertFalse(decisions[0].requires_confirmation)
 
     def test_protected_category_cannot_be_downgraded_to_personal(self) -> None:
         decisions = self.analyze_mocked(extracted_item(
@@ -274,7 +332,10 @@ class OllamaAnalyzerTest(unittest.TestCase):
         ), text="Ben astımlıyım")
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SENSITIVE)
         self.assertEqual(decisions[0].sensitivity, models.Sensitivity.HEALTH)
-        self.assertTrue(decisions[0].requires_confirmation)
+        self.assertEqual(
+            decisions[0].analysis_metadata["verification_status"],
+            "user_asserted",
+        )
 
     def test_protected_literal_data_overrides_personal_even_in_generic_category(self) -> None:
         for text, sensitivity in [
@@ -288,10 +349,13 @@ class OllamaAnalyzerTest(unittest.TestCase):
                     speech_act="profile_fact", category="profile", key="private_data",
                     sensitivity_domain="personal", value=text,
                 ), text=text)
-                self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SENSITIVE)
-                self.assertEqual(decisions[0].sensitivity, sensitivity)
-                self.assertTrue(decisions[0].requires_confirmation)
-                self.assertTrue(decisions[0].analysis_metadata["sensitivity_overridden_by_policy"])
+                if sensitivity in {models.Sensitivity.CREDENTIAL, models.Sensitivity.FINANCIAL}:
+                    self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.DISCARD)
+                    self.assertEqual(decisions[0].sensitivity, models.Sensitivity.NORMAL)
+                else:
+                    self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SENSITIVE)
+                    self.assertEqual(decisions[0].sensitivity, sensitivity)
+                    self.assertTrue(decisions[0].analysis_metadata["sensitivity_overridden_by_policy"])
 
     def test_protection_checks_only_the_validated_evidence_clause(self) -> None:
         text = "Çayımı açık içerim. Adresim nedir?"
@@ -299,7 +363,6 @@ class OllamaAnalyzerTest(unittest.TestCase):
             value="Çayımı açık içerim", evidence_text="Çayımı açık içerim.",
         ), text=text)
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.LONG_TERM)
-        self.assertFalse(decisions[0].requires_confirmation)
 
     def test_semantic_preference_overrides_conflicting_should_store_hint(self) -> None:
         decisions = self.analyze_mocked(
@@ -413,11 +476,10 @@ class OllamaAnalyzerTest(unittest.TestCase):
                     key="temporary_address", sensitivity_domain="location", value=text,
                 ), text=text)[0]
                 self.assertEqual(decision.memory_type, models.CandidateMemoryType.SENSITIVE)
-                self.assertTrue(decision.requires_confirmation)
                 self.assertEqual(decision.expires_at, datetime(2026, 9, expected_day, 21, tzinfo=timezone.utc))
 
     def test_symptom_expiry_and_stable_health_lifetime_are_separate(self) -> None:
-        for scope in ["unknown", "persistent", "current_session"]:
+        for scope in ["unknown", "current_session"]:
             with self.subTest(scope=scope):
                 text = "Başım dönüyor"
                 decision = self.analyze_mocked(extracted_item(
@@ -425,6 +487,15 @@ class OllamaAnalyzerTest(unittest.TestCase):
                     category="symptom", key="dizziness", value=text,
                 ), text=text)[0]
                 self.assertEqual(decision.expires_at, self.occurred_at + timedelta(hours=1))
+                self.assertEqual(decision.scope, models.MemoryScope.SESSION)
+        persistent_text = "Uzun süredir başım dönüyor"
+        persistent = self.analyze_mocked(extracted_item(
+            speech_act="current_state", temporal_scope="persistent",
+            sensitivity_domain="health", category="symptom",
+            key="persistent_dizziness", value=persistent_text,
+        ), text=persistent_text)[0]
+        self.assertIsNone(persistent.expires_at)
+        self.assertEqual(persistent.scope, models.MemoryScope.PROFILE)
         for act, text in [
             ("habit", "Tansiyon ilacımı kahvaltıdan sonra alıyorum"),
             ("profile_fact", "Ben astımlıyım"),
@@ -1009,6 +1080,42 @@ class OllamaAnalyzerTest(unittest.TestCase):
             "question",
         )
 
+    def test_personal_semantic_categories_are_policy_mapped(self) -> None:
+        for category in ("preferred_name", "communication_preference"):
+            with self.subTest(category=category):
+                text = "Bana Ahmet Bey diye hitap et"
+                decision = self.analyze_mocked(extracted_item(
+                    category=category,
+                    key="form_of_address",
+                    value="Ahmet Bey",
+                    evidence_text=text,
+                    sensitivity_domain="none",
+                ), text=text)[0]
+                self.assertEqual(decision.sensitivity, models.Sensitivity.PERSONAL)
+
+    def test_location_category_requires_protected_location_evidence(self) -> None:
+        ordinary = "Gözlüğümü komodinin üstünde tutarım"
+        ordinary_decision = self.analyze_mocked(extracted_item(
+            speech_act="habit",
+            category="location",
+            key="glasses_location",
+            value=ordinary,
+            evidence_text=ordinary,
+            sensitivity_domain="none",
+        ), text=ordinary)[0]
+        self.assertEqual(ordinary_decision.sensitivity, models.Sensitivity.NORMAL)
+
+        address = "Adresim Bahar Sokak 12"
+        address_decision = self.analyze_mocked(extracted_item(
+            speech_act="profile_fact",
+            category="location",
+            key="home_address",
+            value=address,
+            evidence_text=address,
+            sensitivity_domain="none",
+        ), text=address)[0]
+        self.assertEqual(address_decision.sensitivity, models.Sensitivity.LOCATION)
+
     def test_context_guard_recovers_time_bound_reply_discarded_by_model(self) -> None:
         decisions = self.analyze_mocked_items(
             [
@@ -1094,7 +1201,7 @@ class OllamaAnalyzerTest(unittest.TestCase):
         self.assertEqual(decision.value["type"], "contextual_user_intent")
         self.assertEqual(decision.value["in_reply_to"], prompt)
 
-    def test_protected_contextual_prompt_requires_confirmation(self) -> None:
+    def test_protected_contextual_prompt_auto_applies(self) -> None:
         prompt = "Tansiyon ilacınızı bugün aldınız mı?"
         text = "Evet, bugün aldım"
         decision = self.analyze_mocked_items([
@@ -1115,7 +1222,6 @@ class OllamaAnalyzerTest(unittest.TestCase):
 
         self.assertEqual(decision.memory_type, models.CandidateMemoryType.SENSITIVE)
         self.assertEqual(decision.sensitivity, models.Sensitivity.HEALTH)
-        self.assertTrue(decision.requires_confirmation)
         self.assertEqual(decision.value["in_reply_to"], prompt)
         self.assertIsNotNone(decision.expires_at)
         self.assertTrue(decision.analysis_metadata["contextual_prompt_verified"])
@@ -1319,6 +1425,146 @@ class OllamaAnalyzerTest(unittest.TestCase):
         with patch.object(memory_analyzer.urllib_request, "urlopen", side_effect=URLError("offline")):
             decisions = memory_analyzer.analyze_message("Her gün kaçta ilaç alıyorum", self.occurred_at)
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.DISCARD)
+
+    def test_default_single_pass_uses_verified_evidence_when_value_is_ungrounded(self) -> None:
+        text = "Artık sabah 7'de değil, 8'de kalkıyorum"
+        item = extracted_item(
+            speech_act="habit",
+            category="routine",
+            key="morning_wake_time",
+            value="Sabah saat 8'de kalkarım",
+            evidence_text=text,
+        )
+        response = FakeResponse({
+            "message": {"content": json.dumps({"items": [item]})}
+        })
+        with patch.dict(os.environ, {"MEMORY_SEMANTIC_RETRY": "false"}), patch.object(
+            memory_analyzer.urllib_request,
+            "urlopen",
+            return_value=response,
+        ) as mocked:
+            decision = memory_analyzer.analyze_message(text, self.occurred_at)[0]
+
+        self.assertEqual(mocked.call_count, 1)
+        self.assertEqual(decision.scope, models.MemoryScope.PROFILE)
+        self.assertEqual(decision.value, text)
+        self.assertEqual(
+            decision.analysis_metadata["value_grounding_fallback"],
+            "unsupported_value",
+        )
+
+    def test_default_single_pass_normalizes_complete_transient_assertion(self) -> None:
+        for claim_kind, text in [
+            ("contextual_reply", "Şimdi biraz dinleneceğim"),
+            ("question", "Birazdan mutfağa gideceğim"),
+        ]:
+            with self.subTest(claim_kind=claim_kind), patch.dict(
+                os.environ, {"MEMORY_SEMANTIC_RETRY": "false"}
+            ):
+                decision = self.analyze_mocked(extracted_item(
+                    should_store=False,
+                    claim_kind=claim_kind,
+                    subject="user",
+                    speech_act="intent",
+                    temporal_scope="current_session",
+                    category="none",
+                    key="none",
+                    value=text,
+                    evidence_text=text,
+                ), text=text)[0]
+                self.assertEqual(
+                    decision.memory_type,
+                    models.CandidateMemoryType.SHORT_TERM,
+                )
+                self.assertEqual(decision.scope, models.MemoryScope.SESSION)
+                self.assertEqual(
+                    decision.analysis_metadata["contract_normalization"]["reason"],
+                    "complete_literal_transient_assertion",
+                )
+
+    def test_storage_scope_is_independent_from_health_sensitivity(self) -> None:
+        cases = [
+            (
+                "Dün banyoda düştüm",
+                extracted_item(
+                    speech_act="episode", temporal_scope="unknown",
+                    sensitivity_domain="health", category="incident",
+                    key="bathroom_fall", value="Dün banyoda düştüm",
+                ),
+                models.MemoryScope.EPISODE,
+            ),
+            (
+                "Başım ağrıyor",
+                extracted_item(
+                    speech_act="current_state", temporal_scope="current_session",
+                    sensitivity_domain="health", category="symptom",
+                    key="headache", value="Başım ağrıyor",
+                ),
+                models.MemoryScope.SESSION,
+            ),
+            (
+                "Astım hastasıyım",
+                extracted_item(
+                    speech_act="profile_fact", temporal_scope="persistent",
+                    sensitivity_domain="health", category="condition",
+                    key="asthma", value="Astım hastasıyım",
+                ),
+                models.MemoryScope.PROFILE,
+            ),
+        ]
+        for text, item, expected_scope in cases:
+            with self.subTest(scope=expected_scope):
+                decision = self.analyze_mocked(item, text=text)[0]
+                self.assertEqual(decision.sensitivity, models.Sensitivity.HEALTH)
+                self.assertEqual(decision.scope, expected_scope)
+
+    def test_durable_health_accessibility_state_is_profile_scoped(self) -> None:
+        text = "İşitme cihazım olmadan konuşmaları anlamakta zorlanıyorum"
+        decision = self.analyze_mocked(extracted_item(
+            speech_act="current_state",
+            temporal_scope="unknown",
+            sensitivity_domain="health",
+            category="communication",
+            key="hearing_accessibility",
+            value=text,
+        ), text=text)[0]
+        self.assertEqual(decision.memory_type, models.CandidateMemoryType.SENSITIVE)
+        self.assertEqual(decision.scope, models.MemoryScope.PROFILE)
+        self.assertIsNone(decision.expires_at)
+
+    def test_high_similarity_health_quote_uses_literal_source_only(self) -> None:
+        text = "Geçen yıl kalça ameliyatı oldum"
+        item = extracted_item(
+            speech_act="profile_fact",
+            temporal_scope="unknown",
+            sensitivity_domain="health",
+            category="episode",
+            key="past_surgery",
+            value="Geçen yıl kalça ameliżyati oldum",
+            evidence_text="Geçen yıl kalça ameliżyati oldum",
+        )
+        with patch.dict(os.environ, {"MEMORY_SEMANTIC_RETRY": "false"}):
+            decision = self.analyze_mocked(item, text=text)[0]
+        self.assertEqual(decision.scope, models.MemoryScope.EPISODE)
+        self.assertEqual(decision.value, text)
+        self.assertEqual(
+            decision.analysis_metadata["evidence_quote_fallback"],
+            "high_similarity_health_quote",
+        )
+
+    def test_fuzzy_quote_fallback_never_applies_to_credentials(self) -> None:
+        text = "İnternet şifrem MaviEv-2026"
+        decision = self.analyze_mocked(extracted_item(
+            speech_act="profile_fact",
+            temporal_scope="persistent",
+            sensitivity_domain="credential",
+            category="credential",
+            key="wifi_password",
+            value="İnternet şifrem MaviEx-2026",
+            evidence_text="İnternet şifrem MaviEx-2026",
+        ), text=text)[0]
+        self.assertEqual(decision.scope, models.MemoryScope.DISCARD)
+        self.assertEqual(decision.analysis_metadata["evidence_guard"], "unsupported_quote")
 
 
 if __name__ == "__main__":
