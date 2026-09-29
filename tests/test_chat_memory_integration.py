@@ -111,7 +111,9 @@ class ChatMemoryIntegrationTest(unittest.TestCase):
         ]):
             turn = new_session.chat(question)
         data = json.loads(
-            turn.prompt.messages[0]["content"].split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            turn.prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
         )
         self.assertEqual(turn.prompt.history_message_count, 0)
         self.assertNotIn("profile", data)

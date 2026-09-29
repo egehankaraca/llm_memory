@@ -61,7 +61,7 @@ DEFAULT_PROFILE_MAX_TOKENS = 1_500
 DEFAULT_EPISODE_MAX_ITEMS = 10
 DEFAULT_EPISODE_MAX_TOKENS = 1_000
 DEFAULT_PINNED_PROFILE_CATEGORIES = (
-    "communication,accessibility,emergency_contact"
+    "communication,accessibility"
 )
 ESTIMATED_CHARACTERS_PER_TOKEN = 3
 
@@ -1315,6 +1315,10 @@ def build_context(
         max_facts=max_episode_items,
         max_tokens=max_episode_tokens,
         pinned_categories=set(),
+        # Episodes are recalled by event/time wording (for example, "Dün ne
+        # olmuştu?"). The profile-only protected-domain gate would otherwise
+        # hide a matching health event unless the query repeated a health term.
+        enforce_protected_query_gate=False,
         now=now,
     )
     episodes = [

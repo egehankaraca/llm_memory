@@ -21,10 +21,33 @@ def payload(count=2, value_size=20):
 
 
 class TemporaryContextConsumerTest(unittest.TestCase):
+    def test_direct_user_asserted_temporary_memory_is_accepted(self):
+        context = payload(count=1)
+        item = context["temporary_memories"][0]
+        item["sensitivity"] = "health"
+        item["provenance"]["verification_status"] = "user_asserted"
+
+        prompt = build_chat_prompt(context, "Dustum.", OrchestratorSettings(),
+                                   user_id="owner", session_id="session")
+        data = json.loads(
+            prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
+        )
+
+        self.assertEqual(
+            data["temporary_memories"][0]["provenance"]["verification_status"],
+            "user_asserted",
+        )
+
     def test_all_items_reach_consumer_with_attribution_without_legacy_duplicates(self):
         prompt = build_chat_prompt(payload(), "Ne planladım?", OrchestratorSettings(),
                                    user_id="owner", session_id="session")
-        data = json.loads(prompt.messages[0]["content"].split("\nMEMORY_CONTEXT_JSON:\n", 1)[1])
+        data = json.loads(
+            prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
+        )
         self.assertEqual(len(data["temporary_memories"]), 2)
         self.assertEqual(data["session"], {})
         self.assertNotIn("source_quote", data["temporary_memories"][0]["provenance"])
@@ -62,7 +85,11 @@ class TemporaryContextConsumerTest(unittest.TestCase):
         context = payload(count=5, value_size=800)
         prompt = build_chat_prompt(context, "Merhaba", OrchestratorSettings(num_ctx=2048, num_predict=256),
                                    user_id="owner", session_id="session")
-        data = json.loads(prompt.messages[0]["content"].split("\nMEMORY_CONTEXT_JSON:\n", 1)[1])
+        data = json.loads(
+            prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
+        )
         self.assertTrue(prompt.trimmed)
         self.assertLess(len(data["temporary_memories"]), 5)
         self.assertLessEqual(prompt.estimated_tokens, prompt.input_budget)

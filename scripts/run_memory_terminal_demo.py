@@ -24,15 +24,30 @@ from memory_http import JsonHttpClient, MemoryClientError  # noqa: E402
 
 HELP = """Commands:
   /context [query]  Show the bounded, query-aware context package
-  /memories        Show active long-term profile facts
+  /profile         Show active long-term profile facts
+  /memories        Alias for /profile
   /episodes        Show append-only episodic memories
-  /temporary       Show active short-term/session memories
+  /session         Show active short-term/session memories
+  /temporary       Alias for /session
   /status EVENT_ID Show an async outbox job and its eventual decisions
+  /debug           Toggle technical output
   /help            Show commands
   /exit            Exit
 
 Any other text is sent only to the Memory Service for classification/storage.
 No reply model, STT, or TTS is called.
+"""
+
+SIMPLE_HELP = """Commands:
+  /profile   Show long-term memories
+  /session   Show short-term memories
+  /episodes  Show episodic memories
+  /debug     Toggle technical details
+  /help      Show commands
+  /exit      Exit
+
+Type naturally. Relevant memory is retrieved automatically before the input is
+processed for storage.
 """
 
 
@@ -50,6 +65,9 @@ class DemoSettings:
     timeout_seconds: int
     async_memory: bool = True
     debug: bool = False
+    simple: bool = False
+    auto_wait_seconds: int = 0
+    query_before_store: bool = False
 
 
 class MemoryTerminalDemo:
@@ -62,6 +80,7 @@ class MemoryTerminalDemo:
         client: JsonHttpClient | None = None,
         output: Callable[[str], None] = print,
         monotonic: Callable[[], float] = time.monotonic,
+        sleeper: Callable[[float], None] = time.sleep,
     ) -> None:
         if not user_id.strip() or len(user_id) > 128:
             raise ValueError("user_id must contain 1-128 characters")
@@ -75,6 +94,8 @@ class MemoryTerminalDemo:
         )
         self.output = output
         self.monotonic = monotonic
+        self.sleeper = sleeper
+        self.debug = settings.debug
 
     def print_json(self, value: object) -> None:
         self.output(json.dumps(value, ensure_ascii=False, indent=2))
@@ -121,6 +142,67 @@ class MemoryTerminalDemo:
             result["reason"] = decision.get("reason")
             result["analysis"] = decision.get("analysis")
         return result
+
+    def show_simple_decisions(self, response: dict[str, Any]) -> None:
+        decisions = response.get("decisions", [])
+        if not isinstance(decisions, list):
+            raise MemoryClientError("Memory Service decisions format is invalid")
+        if not decisions:
+            self.output("Memory processing completed; no decision was returned.")
+            return
+        for decision in decisions:
+            if not isinstance(decision, dict):
+                continue
+            scope = decision.get("scope") or decision.get("memory_type")
+            status = decision.get("status")
+            if scope == "discard" or decision.get("memory_type") == "discard":
+                self.output("• Not stored: this input is not a reusable memory.")
+                continue
+            category = decision.get("category") or "memory"
+            key = decision.get("key") or "value"
+            action = decision.get("consolidation_action") or "stored"
+            self.output(f"✓ {scope}: {category}.{key} ({action}, {status})")
+            if self.debug:
+                self.print_json(self.compact_decision(decision, debug=True))
+
+    def wait_for_event(self, event_id: str) -> dict[str, Any]:
+        deadline = self.monotonic() + self.settings.auto_wait_seconds
+        while True:
+            response = self.status(event_id, render=False)
+            job = response.get("job")
+            if not isinstance(job, dict):
+                raise MemoryClientError("Memory Service job status is invalid")
+            job_status = job.get("status")
+            if job_status == "completed":
+                return response
+            if job_status in {"failed", "canceled"}:
+                raise MemoryClientError(
+                    f"Memory processing ended with status {job_status}: "
+                    f"{job.get('last_error') or 'unknown error'}"
+                )
+            if self.monotonic() >= deadline:
+                raise MemoryClientError(
+                    f"Memory processing did not finish within "
+                    f"{self.settings.auto_wait_seconds} seconds"
+                )
+            self.sleeper(0.5)
+
+    def wait_for_embeddings(self) -> dict[str, Any]:
+        deadline = self.monotonic() + self.settings.auto_wait_seconds
+        path = "/v1/embeddings/status?" + parse.urlencode({"user_id": self.user_id})
+        while True:
+            response = self.client.request("GET", path)
+            if response.get("missing_count") == 0:
+                return response
+            failed = response.get("job_counts", {}).get("failed", 0)
+            if failed:
+                raise MemoryClientError(f"{failed} embedding job(s) failed")
+            if self.monotonic() >= deadline:
+                raise MemoryClientError(
+                    f"Embeddings did not finish within "
+                    f"{self.settings.auto_wait_seconds} seconds"
+                )
+            self.sleeper(0.5)
 
     def show_decisions(
         self,
@@ -178,18 +260,49 @@ class MemoryTerminalDemo:
             job = response.get("job")
             if not isinstance(job, dict):
                 raise MemoryClientError("Memory Service outbox response is invalid")
-            self.output(f"\nMemory enqueue: {response.get('status')} ({elapsed:.3f}s)")
-            self.print_json({
-                "event_id": response.get("event_id"),
-                "job_status": job.get("status"),
-                "attempt_count": job.get("attempt_count"),
-            })
-            self.output(f"Check later with: /status {event_id}")
+            if self.settings.simple:
+                self.output(f"✓ Accepted in {elapsed * 1000:.1f} ms; processing memory…")
+            else:
+                self.output(f"\nMemory enqueue: {response.get('status')} ({elapsed:.3f}s)")
+                self.print_json({
+                    "event_id": response.get("event_id"),
+                    "job_status": job.get("status"),
+                    "attempt_count": job.get("attempt_count"),
+                })
+                self.output(f"Check later with: /status {event_id}")
+            if self.settings.auto_wait_seconds > 0:
+                completed = self.wait_for_event(event_id)
+                if self.settings.simple:
+                    self.show_simple_decisions(completed)
+                else:
+                    self.show_decisions(completed)
+                decisions = completed.get("decisions", [])
+                wrote_profile = any(
+                    isinstance(decision, dict)
+                    and decision.get("status") == "auto_applied"
+                    and (
+                        decision.get("scope") == "profile"
+                        or decision.get("memory_type") == "long_term"
+                    )
+                    for decision in decisions
+                )
+                if wrote_profile:
+                    embedding_status = self.wait_for_embeddings()
+                    if self.settings.simple:
+                        self.output(
+                            "✓ Embedding ready "
+                            f"({embedding_status.get('indexed_count', 0)} indexed)"
+                        )
         else:
             self.show_decisions(response, elapsed_seconds=elapsed)
         return response
 
-    def context(self, query: str | None = None) -> dict[str, Any]:
+    def context(
+        self,
+        query: str | None = None,
+        *,
+        quiet_if_empty: bool = False,
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "user_id": self.user_id,
             "session_id": self.session_id,
@@ -212,6 +325,37 @@ class MemoryTerminalDemo:
                     "query_embedding_ms": semantic.get("query_embedding_ms"),
                     "vector_search_ms": semantic.get("vector_search_ms"),
                 })
+        profile_facts = response.get("profile_facts", [])
+        episodes = response.get("episodes", [])
+        temporary = response.get("temporary_memories", [])
+        if self.settings.simple and not self.debug:
+            memories = [
+                *(profile_facts if isinstance(profile_facts, list) else []),
+                *(episodes if isinstance(episodes, list) else []),
+                *(temporary if isinstance(temporary, list) else []),
+            ]
+            if memories:
+                self.output("\nRelevant stored memory:")
+                for item in memories:
+                    if not isinstance(item, dict):
+                        continue
+                    value = item.get("value")
+                    if value is None and isinstance(item.get("value_json"), dict):
+                        value = item["value_json"].get("value")
+                    label = ".".join(
+                        str(part) for part in (item.get("category"), item.get("key"))
+                        if part
+                    )
+                    self.output(f"  • {label or 'memory'}: {value}")
+                self.output(
+                    "  Retrieval: "
+                    f"{timing.get('client_round_trip_ms')} ms total, "
+                    f"{timing.get('vector_search_ms')} ms vector search"
+                )
+            elif not quiet_if_empty:
+                self.output("\nRelevant stored memory: none")
+            return response
+
         self.output("\nRetrieval timing:")
         self.print_json(timing)
         compact = {
@@ -253,7 +397,7 @@ class MemoryTerminalDemo:
         self.print_json(response)
         return response
 
-    def status(self, event_id: str) -> dict[str, Any]:
+    def status(self, event_id: str, *, render: bool = True) -> dict[str, Any]:
         if not event_id:
             raise MemoryClientError("/status requires an event ID")
         path = (
@@ -261,7 +405,8 @@ class MemoryTerminalDemo:
             + parse.urlencode({"user_id": self.user_id})
         )
         response = self.client.request("GET", path)
-        self.print_json(response)
+        if render:
+            self.print_json(response)
         return response
 
     def handle_command(self, text: str) -> bool:
@@ -270,17 +415,20 @@ class MemoryTerminalDemo:
         if command == "/exit":
             return False
         if command == "/help":
-            self.output(HELP)
+            self.output(SIMPLE_HELP if self.settings.simple else HELP)
         elif command == "/context":
             self.context(argument or None)
-        elif command == "/memories":
+        elif command in {"/profile", "/memories"}:
             self.memories()
         elif command == "/episodes":
             self.episodes()
-        elif command == "/temporary":
+        elif command in {"/session", "/temporary"}:
             self.temporary()
         elif command == "/status":
             self.status(argument)
+        elif command == "/debug":
+            self.debug = not self.debug
+            self.output(f"Debug output: {'on' if self.debug else 'off'}")
         else:
             self.output("Unknown command. Use /help.")
         return True
@@ -333,6 +481,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also show analyzer reason and audit metadata",
     )
+    parser.add_argument("--simple", action="store_true", help="Use concise demo output")
+    parser.add_argument(
+        "--auto-wait-seconds",
+        type=int,
+        default=0,
+        help="Automatically wait for extraction and embeddings",
+    )
+    parser.add_argument(
+        "--query-before-store",
+        action="store_true",
+        help="Retrieve relevant context for each natural-language input",
+    )
     parser.add_argument(
         "--text",
         action="append",
@@ -353,6 +513,9 @@ def main(argv: list[str] | None = None) -> int:
             else environment_boolean("MEMORY_ASYNC_INGESTION", True)
         ),
         debug=args.debug,
+        simple=args.simple,
+        auto_wait_seconds=max(0, args.auto_wait_seconds),
+        query_before_store=args.query_before_store,
     )
     try:
         demo = MemoryTerminalDemo(
@@ -363,22 +526,23 @@ def main(argv: list[str] | None = None) -> int:
         analyzer = demo.check_services()
         print(f"User: {demo.user_id}")
         print(f"Session: {demo.session_id}")
-        print("Reply model: disabled")
-        print("STT/TTS: disabled")
-        print(
-            "Memory ingestion: "
-            + ("async outbox/worker" if settings.async_memory else "synchronous")
-        )
-        print(
-            f"Memory analyzer: {analyzer.get('provider')} / {analyzer.get('model')} "
-            f"(available={analyzer.get('available')})"
-        )
+        if not settings.simple:
+            print("Reply model: disabled")
+            print("STT/TTS: disabled")
+            print(
+                "Memory ingestion: "
+                + ("async outbox/worker" if settings.async_memory else "synchronous")
+            )
+            print(
+                f"Memory analyzer: {analyzer.get('provider')} / {analyzer.get('model')} "
+                f"(available={analyzer.get('available')})"
+            )
         if args.text:
             for text in args.text:
                 print(f"\nInput: {text}")
                 demo.process_text(text)
             return 0
-        print(HELP)
+        print(SIMPLE_HELP if settings.simple else HELP)
         while True:
             text = input("\nMemory> ").strip()
             if not text:
@@ -388,6 +552,8 @@ def main(argv: list[str] | None = None) -> int:
                     if not demo.handle_command(text):
                         break
                 else:
+                    if settings.query_before_store:
+                        demo.context(text, quiet_if_empty=True)
                     demo.process_text(text)
             except MemoryClientError as exc:
                 print(f"[Error] {exc}", file=sys.stderr)

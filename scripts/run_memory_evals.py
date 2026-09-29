@@ -365,7 +365,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument("--provider", choices=["ollama", "rules"], default="ollama")
-    parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", "qwen3:8b"))
+    parser.add_argument("--model", default=os.getenv("OLLAMA_MODEL", "gemma4:12b"))
     parser.add_argument(
         "--case",
         dest="case_ids",

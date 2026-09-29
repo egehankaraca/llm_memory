@@ -11,6 +11,7 @@ from conversation_orchestrator import (
     OrchestratorError,
     OrchestratorSettings,
     PersistenceError,
+    MEMORY_PRECEDENCE_POSTAMBLE,
     SYSTEM_PROMPT,
     build_chat_prompt,
     message_tokens,
@@ -144,6 +145,19 @@ class ConversationOrchestratorTest(unittest.TestCase):
             ],
         )
 
+    def test_head_impact_bypasses_reply_model(self):
+        self.memory.request.side_effect = [
+            emergency_context_payload(), decision_payload(), {"status": "created"},
+        ]
+        self.ollama.reset_mock()
+
+        turn = self.orchestrator.chat("Banyoda kaydım, kafamı vurdum, ne yapacağım?")
+
+        self.ollama.request.assert_not_called()
+        self.assertEqual(turn.model_stats["response_mode"], "emergency_orchestrator")
+        self.assertEqual(turn.emergency_action.reason, "fall_with_head_impact")
+        self.assertEqual(turn.emergency_action.action, "call_simulated")
+
     def test_confirmation_commands_are_removed(self):
         self.memory.request.side_effect = None
         for command in ("/confirm candidate-1", "/reject candidate-1", "/pending"):
@@ -215,6 +229,11 @@ class ConversationOrchestratorTest(unittest.TestCase):
             self.assertEqual(os.environ["OLLAMA_MODEL"], "qwen3:8b")
             self.assertEqual(settings.num_ctx, 2048)
 
+    def test_extractor_model_is_the_default_reply_model(self):
+        with patch.dict(os.environ, {"OLLAMA_MODEL": "extractor-only"}, clear=True):
+            settings = OrchestratorSettings.from_environment()
+        self.assertEqual(settings.model, "extractor-only")
+
     def test_async_memory_ingestion_is_the_default_and_can_be_disabled(self):
         with patch.dict(os.environ, {}, clear=True):
             self.assertTrue(
@@ -231,7 +250,7 @@ class ConversationOrchestratorTest(unittest.TestCase):
 
     def test_generation_options_are_shared_defaults_but_fresh_objects(self):
         settings = OrchestratorSettings(model="qwen3:8b", num_ctx=2048, num_predict=256)
-        expected = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0,
+        expected = {"temperature": 0.2, "top_p": 0.8, "top_k": 20, "min_p": 0,
                     "num_ctx": 2048, "num_predict": 256}
         first = settings.generation_options
         self.assertEqual(first, expected)
@@ -240,6 +259,7 @@ class ConversationOrchestratorTest(unittest.TestCase):
         self.orchestrator.chat("Merhaba")
         self.assertEqual(self.ollama.request.call_args.args[2]["options"],
                          self.orchestrator.settings.generation_options)
+        self.assertIn("/no_think", self.ollama.request.call_args.args[2]["messages"][0]["content"])
 
     def test_gemma4_sampling_uses_conservative_demo_settings_and_fresh_objects(self):
         expected = {"temperature": 0.3, "top_p": 0.95, "top_k": 64, "min_p": 0,
@@ -255,10 +275,16 @@ class ConversationOrchestratorTest(unittest.TestCase):
     def test_gemma4_sampling_does_not_match_substrings_or_other_families(self):
         expected = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "min_p": 0,
                     "num_ctx": 4096, "num_predict": 512}
-        for model in ("qwen3:8b", "gemma3:12b", "gemma4-custom:12b",
+        for model in ("gemma3:12b", "gemma4-custom:12b",
                       "my-gemma4:12b", "unknown"):
             with self.subTest(model=model):
                 self.assertEqual(OrchestratorSettings(model=model).generation_options, expected)
+
+    def test_qwen3_reply_sampling_is_conservative(self):
+        settings = OrchestratorSettings(model="qwen3:4b-instruct")
+        self.assertEqual(settings.generation_options["temperature"], 0.2)
+        self.assertIn("ikinci şahısla kurun", MEMORY_PRECEDENCE_POSTAMBLE)
+        self.assertIn("mevcut durum uydurmayın", MEMORY_PRECEDENCE_POSTAMBLE)
 
     def test_gemma4_chat_uses_reply_sampling_without_changing_extractor(self):
         settings = OrchestratorSettings(
@@ -273,7 +299,7 @@ class ConversationOrchestratorTest(unittest.TestCase):
         request = self.ollama.request.call_args.args[2]
         self.assertEqual(request["model"], "gemma4:12b")
         self.assertEqual(request["options"], settings.generation_options)
-        self.assertEqual(OrchestratorSettings(model="qwen3:8b").generation_options["temperature"], 0.7)
+        self.assertEqual(OrchestratorSettings(model="qwen3:8b").generation_options["temperature"], 0.2)
 
     def test_only_real_history_and_current_text_are_sent_and_persisted(self):
         turn = self.orchestrator.chat("Bugün ne konuşalım?")
@@ -294,6 +320,82 @@ class ConversationOrchestratorTest(unittest.TestCase):
         self.assertEqual(writes[1].args[2]["content"], turn.reply)
         self.assertNotIn(SYSTEM_PROMPT, writes[0].args[2]["text"])
         self.assertNotIn(SYSTEM_PROMPT, writes[1].args[2]["content"])
+
+    def test_memory_snapshot_is_closed_before_current_turn_precedence_rule(self):
+        context = attributed_context_payload()
+        context["profile_facts"][0]["value"] = "Eski değeri kullan"
+        prompt = build_chat_prompt(
+            context,
+            "Yeni değeri kullan",
+            OrchestratorSettings(num_ctx=2048, num_predict=256),
+            user_id="test-user",
+            session_id="test-session",
+        )
+
+        system = prompt.messages[0]["content"]
+        self.assertLess(system.index("Eski değeri kullan"), system.index("END_MEMORY_CONTEXT_JSON"))
+        self.assertIn("Son mesajdaki açık kullanıcı", system.split("END_MEMORY_CONTEXT_JSON", 1)[1])
+        self.assertEqual(prompt.messages[-1], {"role": "user", "content": "Yeni değeri kullan"})
+
+    def test_async_worker_delay_does_not_erase_the_previous_live_turn(self):
+        stale = {
+            "as_of": "2026-09-22T08:15:00+00:00",
+            "user_id": "test-user",
+            "profile": {
+                "communication": {"form_of_address": "Bana Ahmet Bey diye hitap et"},
+            },
+            "profile_facts": [],
+            "session": {},
+            "temporary_observations": [],
+            "temporary_memories": [],
+            "recent_messages": [],
+            "message_refs": [],
+            "conversation_window": {"max_messages": 10, "max_tokens": 2000},
+            "profile_retrieval": {"pinned_categories": ["communication"]},
+        }
+
+        def memory_response(method, path, payload=None):
+            if path == "/v1/context:build":
+                return stale
+            if path == "/v1/interactions:enqueue":
+                return {
+                    "status": "queued",
+                    "job": {"event_id": payload["event_id"], "status": "pending"},
+                    "decisions": [],
+                }
+            if path == "/v1/sessions/test-session/messages":
+                return {"status": "created"}
+            raise AssertionError(path)
+
+        memory = Mock(spec=JsonHttpClient)
+        memory.request.side_effect = memory_response
+        ollama = Mock(spec=JsonHttpClient)
+        first_reply = reply_payload()
+        first_reply["message"]["content"] = "Bundan sonra size Egehan Bey diye hitap edeceğim."
+        second_reply = reply_payload()
+        second_reply["message"]["content"] = "Merhaba Egehan Bey."
+        ollama.request.side_effect = [first_reply, second_reply]
+        orchestrator = ConversationOrchestrator(
+            OrchestratorSettings(async_memory_ingestion=True),
+            "test-user",
+            "test-session",
+            memory_http=memory,
+            ollama_http=ollama,
+        )
+
+        first = orchestrator.chat("Bana Egehan Bey diye hitap et")
+        second = orchestrator.chat("Merhaba")
+
+        second_messages = ollama.request.call_args_list[1].args[2]["messages"]
+        self.assertIn(
+            {"role": "user", "content": "Bana Egehan Bey diye hitap et"},
+            second_messages[1:-1],
+        )
+        self.assertIn(
+            {"role": "assistant", "content": first.reply},
+            second_messages[1:-1],
+        )
+        self.assertEqual(second.prompt.history_message_count, 2)
 
     def test_style_and_system_do_not_hardcode_the_reported_personal_message(self):
         instructions = SYSTEM_PROMPT
@@ -318,7 +420,11 @@ class ConversationOrchestratorTest(unittest.TestCase):
         context["profile_facts"][0]["provenance"]["source_quote"] = "Unrelated protected text"
         original = json.dumps(context)
         prompt = build_chat_prompt(context, "Sabahları ne içerim?", OrchestratorSettings(), user_id="test-user")
-        data = json.loads(prompt.messages[0]["content"].split("\nMEMORY_CONTEXT_JSON:\n", 1)[1])
+        data = json.loads(
+            prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
+        )
         self.assertEqual(data["user_id"], "test-user")
         self.assertEqual(data["profile_facts"][0]["owner_user_id"], "test-user")
         self.assertEqual(data["profile_facts"][0]["value"], context["profile_facts"][0]["value"])
@@ -331,7 +437,11 @@ class ConversationOrchestratorTest(unittest.TestCase):
     def test_legacy_profile_is_attributed_without_fabricated_source_or_normalization(self):
         context = context_payload()
         prompt = build_chat_prompt(context, "Saatim neydi?", OrchestratorSettings(), user_id="test-user")
-        data = json.loads(prompt.messages[0]["content"].split("\nMEMORY_CONTEXT_JSON:\n", 1)[1])
+        data = json.loads(
+            prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
+        )
         fact = data["profile_facts"][0]
         self.assertEqual(fact["value"], context["profile"]["routine"]["tennis_time"])
         self.assertEqual(fact["owner_user_id"], "test-user")
@@ -368,7 +478,11 @@ class ConversationOrchestratorTest(unittest.TestCase):
         })
         original = json.dumps(context)
         prompt = build_chat_prompt(context, "Merhaba", OrchestratorSettings(num_ctx=2048, num_predict=256))
-        data = json.loads(prompt.messages[0]["content"].split("\nMEMORY_CONTEXT_JSON:\n", 1)[1])
+        data = json.loads(
+            prompt.messages[0]["content"]
+            .split("\nMEMORY_CONTEXT_JSON:\n", 1)[1]
+            .split("\nEND_MEMORY_CONTEXT_JSON\n", 1)[0]
+        )
         self.assertTrue(prompt.trimmed)
         self.assertEqual([fact["fact_id"] for fact in data["profile_facts"]], ["coffee-1"])
         self.assertEqual(prompt.profile_fact_count, len(data["profile_facts"]))

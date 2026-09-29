@@ -52,7 +52,7 @@ class OllamaSettings:
             base_url=os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip(
                 "/"
             ),
-            model=os.getenv("OLLAMA_MODEL", "qwen3:8b"),
+            model=os.getenv("OLLAMA_MODEL", "gemma4:12b"),
             timeout_seconds=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "30")),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "5m"),
             num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
@@ -320,6 +320,27 @@ def normalize_text(text: str) -> str:
     return ascii_like.replace("ı", "i")
 
 
+ACKNOWLEDGEMENT_WORDS = {
+    "aynen",
+    "dogru",
+    "evet",
+    "hayir",
+    "peki",
+    "olur",
+    "tamam",
+    "tamamdir",
+    "anladim",
+}
+
+
+def is_acknowledgement_only(text: str) -> bool:
+    """Return true for low-information confirmations with no proposition."""
+    words = re.findall(r"[a-z0-9]+", normalize_text(text))
+    return bool(words) and len(words) <= 3 and all(
+        word in ACKNOWLEDGEMENT_WORDS for word in words
+    )
+
+
 def verified_health_evidence_fallback(
     item: ExtractedMemory,
     source: str,
@@ -389,6 +410,18 @@ def safe_identifier(value: str | None, fallback: str) -> str:
         if normalized:
             return normalized[:100]
     return fallback[:100]
+
+
+def guard_profile_slot_key(key: str, evidence_text: str) -> tuple[str, str | None]:
+    """Keep an unsupported model-produced coffee slot from replacing another fact."""
+    normalized_key = safe_identifier(key, "unknown")
+    normalized_evidence = normalize_text(evidence_text)
+    if (
+        "coffee" in normalized_key
+        and not re.search(r"\b(?:coffee|kahve|kahvesi|kahvemi)\b", normalized_evidence)
+    ):
+        return stable_statement_key("preference", evidence_text), "coffee_slot_without_coffee_evidence"
+    return normalized_key, None
 
 
 def contextual_protected_domain_hint(text: str) -> str | None:
@@ -505,11 +538,15 @@ def analyze_message_with_rules(
                                "evidence_guard": "reported_speech"},
         )]
 
+    emergency_contact_hint = (
+        protected_domain_hint(text) == SensitivityDomain.EMERGENCY_CONTACT.value
+    )
     sensitive_terms = RULE_HEALTH_TERMS | RULE_EMERGENCY_CONTACT_TERMS
-    if any(term in normalized for term in sensitive_terms):
+    if emergency_contact_hint or any(term in normalized for term in sensitive_terms):
         sensitivity = (
             models.Sensitivity.EMERGENCY_CONTACT
-            if any(term in normalized for term in RULE_EMERGENCY_CONTACT_TERMS)
+            if emergency_contact_hint
+            or any(term in normalized for term in RULE_EMERGENCY_CONTACT_TERMS)
             else models.Sensitivity.HEALTH
         )
         temporal_scope = None
@@ -525,8 +562,19 @@ def analyze_message_with_rules(
                 category="emergency_contact"
                 if sensitivity == models.Sensitivity.EMERGENCY_CONTACT
                 else "health",
-                key=stable_statement_key("reported", text),
-                value={"statement": text},
+                key=(
+                    "primary_emergency_contact"
+                    if sensitivity == models.Sensitivity.EMERGENCY_CONTACT
+                    else stable_statement_key("reported", text)
+                ),
+                # Keep the complete literal contact statement. It contains both
+                # relationship/name and phone number and is directly consumable
+                # by the emergency orchestrator.
+                value=(
+                    text
+                    if sensitivity == models.Sensitivity.EMERGENCY_CONTACT
+                    else {"statement": text}
+                ),
                 sensitivity=sensitivity,
                 confidence=0.90,
 
@@ -926,6 +974,12 @@ def _apply_policy(
 ) -> MemoryDecision:
     evidence_quote_fallback = False
     contract_normalization: dict[str, Any] | None = None
+    if is_acknowledgement_only(text):
+        return _discard_decision(
+            item,
+            "Tek başına onay veya nezaket ifadesi saklanabilir bir önerme değildir.",
+            "acknowledgement_only",
+        )
     if (
         not semantic_retry_enabled()
         and item.claim_kind != ClaimKind.ASSERTION
@@ -1073,6 +1127,17 @@ def _apply_policy(
     key = safe_identifier(item.key, fallback_key)
     if key in {"none", "unknown"}:
         key = fallback_key
+    if memory_scope == models.MemoryScope.PROFILE:
+        key, slot_evidence_guard = guard_profile_slot_key(key, item.evidence_text)
+        if slot_evidence_guard is not None:
+            policy_metadata["slot_evidence_guard"] = slot_evidence_guard
+
+    if sensitivity == models.Sensitivity.EMERGENCY_CONTACT:
+        # The model may emit only the phone number as `value`, which loses the
+        # person's name and relationship. The full evidence clause has already
+        # passed the literal-source guard, so it is the authoritative value.
+        category = "emergency_contact"
+        key = "primary_emergency_contact"
 
     if sensitivity in {models.Sensitivity.FINANCIAL, models.Sensitivity.CREDENTIAL}:
         return _discard_decision(
@@ -1089,7 +1154,11 @@ def _apply_policy(
             policy_metadata.update({
                 "health_persistence_policy": HEALTH_ASSERTION_POLICY,
             })
-        sensitive_value: Any = value_text
+        sensitive_value: Any = (
+            item.evidence_text
+            if sensitivity == models.Sensitivity.EMERGENCY_CONTACT
+            else value_text
+        )
         if contextual_prompt is not None:
             sensitive_value = {
                 "type": "contextual_user_reply",
@@ -1657,7 +1726,7 @@ def get_analyzer_status() -> dict[str, Any]:
         return {
             "provider": "ollama",
             "available": False,
-            "model": os.getenv("OLLAMA_MODEL", "qwen3:8b"),
+            "model": os.getenv("OLLAMA_MODEL", "gemma4:12b"),
             "policy_version": "3",
             "installed_models": [],
             "fallback_enabled": True,

@@ -36,11 +36,33 @@ class EmergencyOrchestratorTest(unittest.TestCase):
             emergency_reason("Nefes alamıyorum"),
             "breathing_difficulty",
         )
+        self.assertEqual(
+            emergency_reason("Banyoda kaydım, kafamı vurdum, ne yapacağım?"),
+            "fall_with_head_impact",
+        )
+        self.assertEqual(
+            emergency_reason("Başımı dolaba çarptım"),
+            "head_impact",
+        )
+        self.assertEqual(
+            emergency_reason("Bir kolumu kaldıramıyorum"),
+            "stroke_warning_sign",
+        )
+        self.assertEqual(
+            emergency_reason("Nöbet geçiriyorum"),
+            "seizure",
+        )
+        self.assertEqual(
+            emergency_reason("Lütfen ambulans çağır"),
+            "explicit_emergency_help_request",
+        )
 
     def test_past_fall_and_non_emergency_health_text_do_not_trigger(self) -> None:
         self.assertIsNone(emergency_reason("Dün banyoda düştüm"))
         self.assertIsNone(emergency_reason("Başım ağrıyor"))
         self.assertIsNone(emergency_reason("Düşmedim ve kanama yok"))
+        self.assertIsNone(emergency_reason("Dün kafamı vurdum"))
+        self.assertIsNone(emergency_reason("Kafamı vurmadım"))
         self.assertEqual(
             emergency_reason("Kanama yok ama nefes alamıyorum"),
             "breathing_difficulty",
@@ -52,6 +74,17 @@ class EmergencyOrchestratorTest(unittest.TestCase):
             [{"role": "user", "content": "Banyoda düştüm"}],
         )
         self.assertEqual(reason, "fall_with_bleeding")
+
+    def test_post_fall_warning_and_inability_to_stand_use_recent_context(self) -> None:
+        recent_fall = [{"role": "user", "content": "Banyoda düştüm"}]
+        self.assertEqual(
+            emergency_reason("Başım dönüyor", recent_fall),
+            "post_fall_neurological_warning",
+        )
+        self.assertEqual(
+            emergency_reason("Yerden kalkamıyorum", recent_fall),
+            "fall_unable_to_stand",
+        )
 
     def test_user_asserted_contact_is_callable_and_phone_is_normalized(self) -> None:
         self.assertEqual(canonical_phone("0555 123 45 67"), "+905551234567")

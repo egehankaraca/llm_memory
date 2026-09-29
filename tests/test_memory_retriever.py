@@ -170,6 +170,119 @@ class MemoryRetrieverTest(unittest.TestCase):
         self.assertEqual(result.semantic_candidate_count, 1)
         self.assertIn("semantic_similarity", result.selected[0].reasons)
 
+    def test_unrelated_query_excludes_protected_domains_and_weak_time_overlap(self) -> None:
+        memories = [
+            *self.memories,
+            ProfileMemory(
+                id="medication",
+                category="medication",
+                key="medication_time",
+                value="Tansiyon ilacımı her sabah saat 8'de alırım.",
+                confidence=1.0,
+                verification_status="user_asserted",
+                updated_at=self.now,
+            ),
+            ProfileMemory(
+                id="emergency",
+                category="emergency_contact",
+                key="primary_emergency_contact",
+                value="Acil durumda kızım Ayşe'yi ara.",
+                confidence=1.0,
+                verification_status="user_asserted",
+                updated_at=self.now,
+            ),
+        ]
+
+        result = select_profile_memories(
+            memories,
+            query="Sabah içecek alışkanlığım nedir?",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories={"communication", "emergency_contact"},
+            semantic_scores={"tea": 0.82, "medication": 0.60, "emergency": 0.55},
+            now=self.now,
+        )
+
+        self.assertEqual(
+            [selected.memory.id for selected in result.selected],
+            ["tea", "address"],
+        )
+
+    def test_protected_domains_are_retrieved_for_matching_queries(self) -> None:
+        medication = ProfileMemory(
+            id="medication",
+            category="medication",
+            key="medication_time",
+            value="Tansiyon ilacımı her sabah saat 8'de alırım.",
+            confidence=1.0,
+            verification_status="user_asserted",
+            updated_at=self.now,
+        )
+        emergency = ProfileMemory(
+            id="emergency",
+            category="emergency_contact",
+            key="primary_emergency_contact",
+            value="Acil durumda kızım Ayşe'yi ara.",
+            confidence=1.0,
+            verification_status="user_asserted",
+            updated_at=self.now,
+        )
+
+        health = select_profile_memories(
+            [medication, emergency],
+            query="Tansiyon ilacımı kaçta alıyorum?",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories=set(),
+            now=self.now,
+        )
+        crisis = select_profile_memories(
+            [*self.memories, medication, emergency],
+            query="Düştüm, her yer kan içinde!",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories=set(),
+            now=self.now,
+        )
+        head_impact = select_profile_memories(
+            [*self.memories, medication, emergency],
+            query="Banyoda kaydım, kafamı vurdum, ne yapacağım?",
+            max_facts=20,
+            max_tokens=1_500,
+            pinned_categories=set(),
+            now=self.now,
+        )
+
+        self.assertEqual([item.memory.id for item in health.selected], ["medication"])
+        self.assertEqual([item.memory.id for item in crisis.selected], ["emergency"])
+        self.assertEqual([item.memory.id for item in head_impact.selected], ["emergency"])
+
+    def test_episode_mode_recalls_health_event_from_temporal_query(self) -> None:
+        episode = ProfileMemory(
+            id="fall",
+            category="health_event",
+            key="fall_incident",
+            value="Dün banyoda düştüm.",
+            confidence=1.0,
+            verification_status="user_asserted",
+            updated_at=self.now,
+        )
+
+        result = select_profile_memories(
+            [episode],
+            query="Dün ne olmuştu?",
+            max_facts=10,
+            max_tokens=1_000,
+            pinned_categories=set(),
+            enforce_protected_query_gate=False,
+            now=self.now,
+        )
+
+        self.assertEqual(
+            [selected.memory.id for selected in result.selected],
+            ["fall"],
+        )
+
     def test_fact_count_limit_is_enforced(self) -> None:
         result = select_profile_memories(
             self.memories,

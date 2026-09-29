@@ -110,6 +110,32 @@ class OllamaAnalyzerTest(unittest.TestCase):
         self.assertEqual(decisions[0].analyzer_source, "ollama")
         self.assertEqual(decisions[0].analysis_metadata["speech_act"], "preference")
 
+    def test_coffee_slot_requires_coffee_evidence(self) -> None:
+        pasta_text = "Makarna yemeyi çok severim"
+        pasta = self.analyze_mocked(extracted_item(
+            category="dietary_preference",
+            key="coffee_preference",
+            value=pasta_text,
+            evidence_text=pasta_text,
+        ), text=pasta_text)[0]
+        coffee_text = "Her sabah sütlü Türk kahvesi içerim"
+        coffee = self.analyze_mocked(extracted_item(
+            speech_act="habit",
+            category="dietary_preference",
+            key="coffee_preference",
+            value=coffee_text,
+            evidence_text=coffee_text,
+        ), text=coffee_text)[0]
+
+        self.assertNotEqual(pasta.key, "coffee_preference")
+        self.assertTrue(pasta.key.startswith("preference_"))
+        self.assertEqual(
+            pasta.analysis_metadata["slot_evidence_guard"],
+            "coffee_slot_without_coffee_evidence",
+        )
+        self.assertEqual(coffee.key, "coffee_preference")
+        self.assertNotIn("slot_evidence_guard", coffee.analysis_metadata)
+
     def test_existing_memories_are_sent_and_relation_is_auditable(self) -> None:
         captured_payload: dict[str, object] = {}
         response_item = extracted_item(
@@ -176,6 +202,39 @@ class OllamaAnalyzerTest(unittest.TestCase):
 
         self.assertEqual(decisions[0].memory_type, models.CandidateMemoryType.SHORT_TERM)
         self.assertEqual(decisions[0].analyzer_source, "rules_fallback")
+
+    def test_rules_fallback_keeps_emergency_contact_name_and_phone(self) -> None:
+        text = "Acil durumda kızım Ayşe'yi 0555 123 45 67 numarasından ara."
+        with patch.object(
+            memory_analyzer.urllib_request,
+            "urlopen",
+            side_effect=URLError("offline"),
+        ):
+            decision = memory_analyzer.analyze_message(text, self.occurred_at)[0]
+
+        self.assertEqual(decision.memory_type, models.CandidateMemoryType.SENSITIVE)
+        self.assertEqual(decision.category, "emergency_contact")
+        self.assertEqual(decision.key, "primary_emergency_contact")
+        self.assertEqual(decision.value, text)
+        self.assertEqual(decision.sensitivity, models.Sensitivity.EMERGENCY_CONTACT)
+        self.assertEqual(decision.analyzer_source, "rules_fallback")
+
+    def test_emergency_contact_uses_full_evidence_when_model_returns_only_phone(self) -> None:
+        text = "Acil durumda kızım Ayşe'yi 0555 123 45 67 numarasından ara."
+        decision = self.analyze_mocked(extracted_item(
+            speech_act="preference",
+            sensitivity_domain="personal",
+            category="emergency_contact",
+            key="emergency_contact_number",
+            value="0555 123 45 67",
+            evidence_text=text,
+        ), text=text)[0]
+
+        self.assertEqual(decision.memory_type, models.CandidateMemoryType.SENSITIVE)
+        self.assertEqual(decision.category, "emergency_contact")
+        self.assertEqual(decision.key, "primary_emergency_contact")
+        self.assertEqual(decision.value, text)
+        self.assertEqual(decision.sensitivity, models.Sensitivity.EMERGENCY_CONTACT)
 
     def test_direct_health_assertion_is_sensitive_but_user_asserted(self) -> None:
         decisions = self.analyze_mocked(
@@ -423,6 +482,29 @@ class OllamaAnalyzerTest(unittest.TestCase):
             decisions[0].expires_at,
             datetime(2026, 9, 11, 21, tzinfo=timezone.utc),
         )
+
+    def test_acknowledgement_only_message_is_not_temporary_memory(self) -> None:
+        for text in ("Evet doğru", "Tamam", "Aynen"):
+            with self.subTest(text=text):
+                decision = self.analyze_mocked(
+                    extracted_item(
+                        speech_act="intent",
+                        temporal_scope="today",
+                        category="session",
+                        key="confirmation",
+                        value=text,
+                        evidence_text=text,
+                    ),
+                    text=text,
+                )[0]
+                self.assertEqual(
+                    decision.memory_type,
+                    models.CandidateMemoryType.DISCARD,
+                )
+                self.assertEqual(
+                    decision.analysis_metadata["evidence_guard"],
+                    "acknowledgement_only",
+                )
 
     def test_independent_temporary_items_have_distinct_safe_keys(self) -> None:
         statements = ["Bugün parkta yürümek istiyorum", "Bu akşam haberleri izleyeceğim"]

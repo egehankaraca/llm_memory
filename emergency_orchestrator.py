@@ -1,7 +1,7 @@
 """Small deterministic emergency gate for the local assistant demo.
 
 This module deliberately does not place real telephone calls.  It detects a
-small set of high-signal emergencies, selects a confirmed emergency contact
+bounded set of high-signal emergencies, selects a confirmed emergency contact
 from the already-built memory context, and returns an explicit call simulation.
 Memory extraction remains asynchronous and independent from this fast path.
 """
@@ -20,9 +20,10 @@ PHONE_PATTERN = re.compile(
 PAST_ONLY_PATTERN = re.compile(
     r"\b(?:dun|onceki gun|gecen (?:hafta|ay|yil)|eskiden)\b"
 )
-CURRENT_MARKER_PATTERN = re.compile(r"\b(?:simdi|su an|hala|halen)\b")
+CURRENT_MARKER_PATTERN = re.compile(r"\b(?:bugun|simdi|su an|su anda|hala|halen)\b")
 FALL_PATTERN = re.compile(
-    r"\b(?:dust[uü]m|dustu|yere dustum|kayip dustum|kalkamiyorum)\b"
+    r"\b(?:dustum|dustu|kaydim|kayip dustum|yere dustum|yere yikildim|"
+    r"yere kapaklandim|devrildim)\b"
 )
 BLEEDING_PATTERN = re.compile(
     r"\b(?:kaniyor|kanama|kan kaybediyorum|kan durmuyor|her yer kan|"
@@ -40,8 +41,37 @@ UNCONSCIOUS_PATTERN = re.compile(
 CHEST_PATTERN = re.compile(
     r"\b(?:gogsum|gogusum|kalbim)\s+(?:cok\s+)?(?:agriyor|sikisiyor)\b"
 )
+HEAD_PATTERN = re.compile(r"\b(?:basim|basimi|kafam|kafami)\b")
+HEAD_IMPACT_PATTERN = re.compile(
+    r"\b(?:vurdum|carptim|darbe aldim|yarildi)\b"
+)
+HEAD_IMPACT_NEGATED_PATTERN = re.compile(
+    r"\b(?:(?:basim|basimi|kafam|kafami)\b.{0,30}\b"
+    r"(?:vurmadim|carpmadim|darbe almadim)|"
+    r"(?:vurmadim|carpmadim|darbe almadim)\b.{0,30}\b"
+    r"(?:basim|basimi|kafam|kafami))\b"
+)
+POST_FALL_DANGER_PATTERN = re.compile(
+    r"\b(?:basim (?:cok )?agriyor|basim donuyor|sersemledim|"
+    r"kafam karisik|ne oldugunu anlamiyorum|kustum|kusuyorum|"
+    r"konusmam bozuldu|uyanik kalamiyorum)\b"
+)
+UNABLE_TO_STAND_PATTERN = re.compile(
+    r"\b(?:kalkamiyorum|ayaga kalkamiyorum|yerden kalkamiyorum)\b"
+)
+STROKE_PATTERN = re.compile(
+    r"\b(?:felc geciriyorum|yuzumun bir tarafi sarkti|yuzum kaydi|"
+    r"bir kolumu kaldiramiyorum|kolumda aniden (?:gucsuzluk|uyusma) oldu|"
+    r"konusmam aniden bozuldu)\b"
+)
+SEIZURE_PATTERN = re.compile(
+    r"\b(?:nobet geciriyorum|sara nobeti geciriyorum|nobet geciriyor)\b"
+)
+EMERGENCY_HELP_PATTERN = re.compile(
+    r"\b(?:112(?:'yi|yi)? ara|ambulans cagir|acil yardim cagir)\b"
+)
 NEGATED_PATTERN = re.compile(
-    r"\b(?:dusmedim|kanamiyor|kanama yok)\b"
+    r"\b(?:dusmedim|kaymadim|kanamiyor|kanama yok)\b"
 )
 NAME_PATTERN = re.compile(
     r"\b(?:kızım|oğlum|eşim|kardeşim|komşum|arkadaşım|"
@@ -111,30 +141,64 @@ def emergency_reason(text: str, recent_messages: list[dict[str, Any]] | None = N
     """Return a bounded high-signal emergency reason, otherwise ``None``."""
     current = normalize(text)
     past_only = bool(PAST_ONLY_PATTERN.search(current)) and not CURRENT_MARKER_PATTERN.search(current)
+    recent_user_text = " ".join(
+        str(message.get("content", ""))
+        for message in (recent_messages or [])[-4:]
+        if isinstance(message, dict) and message.get("role") == "user"
+    )
+    recent = normalize(recent_user_text)
+    current_fall = bool(FALL_PATTERN.search(current))
+    current_head_impact = (
+        bool(HEAD_PATTERN.search(current))
+        and bool(HEAD_IMPACT_PATTERN.search(current))
+        and not bool(HEAD_IMPACT_NEGATED_PATTERN.search(current))
+    )
+    recent_fall_or_head_impact = bool(FALL_PATTERN.search(recent)) or (
+        bool(HEAD_PATTERN.search(recent))
+        and bool(HEAD_IMPACT_PATTERN.search(recent))
+        and not bool(HEAD_IMPACT_NEGATED_PATTERN.search(recent))
+    )
+
+    # Explicit, present-tense danger signals take precedence over historical
+    # wording elsewhere in the message.
+    if EMERGENCY_HELP_PATTERN.search(current):
+        return "explicit_emergency_help_request"
     if BREATHING_PATTERN.search(current):
         return "breathing_difficulty"
     if UNCONSCIOUS_PATTERN.search(current):
         return "loss_of_consciousness"
     if CHEST_PATTERN.search(current):
         return "chest_pain"
+    if STROKE_PATTERN.search(current):
+        return "stroke_warning_sign"
+    if SEIZURE_PATTERN.search(current):
+        return "seizure"
+
+    # A current neurological warning following a fall/head impact remains
+    # actionable even if the fall itself was described as happening yesterday.
+    if POST_FALL_DANGER_PATTERN.search(current) and (
+        current_fall or current_head_impact or recent_fall_or_head_impact
+    ):
+        return "post_fall_neurological_warning"
     if past_only:
         return None
     if SEVERE_BLEEDING_PATTERN.search(current):
         return "severe_bleeding"
-    if NEGATED_PATTERN.search(current):
+    if NEGATED_PATTERN.search(current) and not current_head_impact:
         return None
-    if FALL_PATTERN.search(current) and BLEEDING_PATTERN.search(current):
+    if current_head_impact:
+        return "fall_with_head_impact" if current_fall else "head_impact"
+    if current_fall and UNABLE_TO_STAND_PATTERN.search(current):
+        return "fall_unable_to_stand"
+    if current_fall and BLEEDING_PATTERN.search(current):
         return "fall_with_bleeding"
 
     # A short follow-up such as "Kolum kanıyor" may rely on the preceding fall.
     if BLEEDING_PATTERN.search(current):
-        recent_user_text = " ".join(
-            str(message.get("content", ""))
-            for message in (recent_messages or [])[-4:]
-            if isinstance(message, dict) and message.get("role") == "user"
-        )
-        if FALL_PATTERN.search(normalize(recent_user_text)):
+        if FALL_PATTERN.search(recent):
             return "fall_with_bleeding"
+    if UNABLE_TO_STAND_PATTERN.search(current) and FALL_PATTERN.search(recent):
+        return "fall_unable_to_stand"
     return None
 
 

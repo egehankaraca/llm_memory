@@ -78,7 +78,7 @@ flowchart LR
 | API | FastAPI + Pydantic | Validated HTTP boundary and OpenAPI documentation |
 | Persistence | PostgreSQL + SQLAlchemy | Durable facts, events, messages, jobs, and audit data |
 | Schema management | Alembic | Transactional, versioned database migrations |
-| Semantic extraction | Ollama, default `qwen3:8b` | Extracts structured meaning; it does not directly choose storage |
+| Semantic extraction | Ollama, default `gemma4:12b` | Extracts structured meaning; it does not directly choose storage |
 | Policy | Deterministic Python policy v3 | Chooses scope, sensitivity handling, TTL, and discard behavior |
 | Safety | Literal evidence, number/time/domain guards | Prevents unsupported or inferred memories from being persisted |
 | Async processing | Transactional outbox, leases, retries, `SKIP LOCKED` | Keeps extraction latency off the chat response path |
@@ -281,8 +281,8 @@ cd llm_memory
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
 
-ollama pull qwen3:8b
 ollama pull embeddinggemma
+ollama pull gemma4:12b
 ```
 
 Load the development environment in every terminal that runs Alembic, the API,
@@ -291,7 +291,8 @@ or the worker:
 ```bash
 export DATABASE_URL='postgresql+psycopg2:///memory_db'
 export MEMORY_ANALYZER_PROVIDER='ollama'
-export OLLAMA_MODEL='qwen3:8b'
+export OLLAMA_MODEL='gemma4:12b'
+export CHAT_OLLAMA_MODEL='gemma4:12b'
 export MEMORY_PROFILE_SEMANTIC_PROVIDER='ollama'
 export MEMORY_PROFILE_EMBEDDING_MODEL='embeddinggemma:latest'
 export MEMORY_ASYNC_INGESTION='true'
@@ -313,14 +314,68 @@ create the `vector` extension, tables, constraints, and HNSW index.
 
 ## Running the system
 
-Use three terminals from the repository root.
+### Recommended: one-command demo
+
+For a local presentation, use the launcher below instead of managing the API
+and worker manually:
+
+```bash
+venv/bin/python scripts/run_demo.py \
+  --database-url 'postgresql+psycopg2:///memory_db' \
+  --user-id demo-user-001
+```
+
+The launcher checks Ollama and its required models, applies migrations, starts
+an isolated API port and asynchronous worker, and opens a concise memory-only
+interface. Natural-language input automatically performs retrieval before it
+is queued for memory analysis. The launcher waits for extraction and profile
+embeddings, so `/status` and `/context` are not needed during the normal demo.
+
+Visible commands are intentionally small:
+
+```text
+/profile   Active long-term facts
+/session   Active short-term memories
+/episodes  Episodic memories
+/debug     Toggle detailed output
+/help      Show all commands
+/exit      Stop the demo, API, and worker
+```
+
+If port `8001` is already in use, the launcher selects a free local port. API
+and worker logs are kept in a temporary directory and shown only on startup
+failure. The conversational reply model, STT, and TTS remain disabled.
+
+To use the same one-command launcher as a real Ollama chat, add `--chat`:
+
+```bash
+venv/bin/python scripts/run_demo.py \
+  --chat \
+  --database-url 'postgresql+psycopg2:///memory_db' \
+  --user-id demo-user-001 \
+  --model gemma4:12b
+```
+
+In chat mode the Conversation Orchestrator retrieves memory before each reply,
+passes the bounded context to the reply model, asynchronously enqueues the user
+message for memory extraction, and stores the assistant message. API and worker
+lifecycle remain owned by the launcher and stop on `/exit`. A new explicit user
+correction takes precedence over an older stored value. While the asynchronous
+worker is still processing, the active chat keeps a bounded process-local copy
+of its latest turns so the very next reply does not fall back to stale memory.
+The `--model` value is shared by chat and memory extraction in this launcher.
+
+### Advanced development mode
+
+Use three terminals from the repository root when inspecting each component
+separately.
 
 ### Terminal 1: API
 
 ```bash
 export DATABASE_URL='postgresql+psycopg2:///memory_db'
 export MEMORY_ANALYZER_PROVIDER='ollama'
-export OLLAMA_MODEL='qwen3:8b'
+export OLLAMA_MODEL='gemma4:12b'
 export MEMORY_PROFILE_SEMANTIC_PROVIDER='ollama'
 export MEMORY_PROFILE_EMBEDDING_MODEL='embeddinggemma:latest'
 
@@ -341,7 +396,7 @@ Use the same database and model settings:
 ```bash
 export DATABASE_URL='postgresql+psycopg2:///memory_db'
 export MEMORY_ANALYZER_PROVIDER='ollama'
-export OLLAMA_MODEL='qwen3:8b'
+export OLLAMA_MODEL='gemma4:12b'
 export MEMORY_PROFILE_SEMANTIC_PROVIDER='ollama'
 export MEMORY_PROFILE_EMBEDDING_MODEL='embeddinggemma:latest'
 
@@ -414,13 +469,19 @@ venv/bin/python scripts/run_chat_demo.py \
   --debug
 ```
 
-The reply model and memory extractor are logically separate even when both use
-`qwen3:8b` locally. Poor conversational wording does not by itself prove a
-retrieval failure; inspect `profile_fact_count`, `/context`, and `/status`.
+The local demo uses `gemma4:12b` for both conversational replies and memory
+extraction so one generative model stays resident. The small
+`embeddinggemma:latest` embedding model remains separate. Poor conversational
+wording does not by itself prove a retrieval failure; inspect
+`profile_fact_count`, `/context`, and `/status`.
 
-The minimal emergency orchestrator can detect a small set of high-signal
-phrases and find a stored emergency contact. It never places a real call; the
-demo reports `call_simulated`.
+The bounded emergency orchestrator detects high-signal bleeding, breathing,
+consciousness, chest-pain, head-impact/fall, stroke-warning, seizure, and
+explicit-help patterns. It can use up to four recent user messages for a short
+follow-up such as a post-fall symptom, rejects historical/negated fall and head
+impact statements, and retrieves a verified emergency contact only for an
+emergency-domain query. It never places a real call; the demo reports
+`call_simulated`.
 
 ## Direct API examples
 
@@ -647,10 +708,11 @@ See `.env.example`. Important variables:
 | `MEMORY_ASYNC_INGESTION` | `true` | Use the outbox fast path in demos |
 | `MEMORY_ANALYZER_PROVIDER` | `ollama` | `ollama` or deterministic `rules` fallback mode |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Local Ollama API |
-| `OLLAMA_MODEL` | `qwen3:8b` | Memory extraction model |
+| `OLLAMA_MODEL` | `gemma4:12b` | Shared memory extraction and default reply model |
 | `OLLAMA_TIMEOUT_SECONDS` | `30` | Extraction timeout |
 | `OLLAMA_KEEP_ALIVE` | `5m` | Extractor residency |
 | `OLLAMA_NUM_CTX` | `4096` | Extractor context size |
+| `CHAT_OLLAMA_MODEL` | `gemma4:12b` | Optional explicit reply-model override; keep equal to `OLLAMA_MODEL` for single-model mode |
 | `MEMORY_TIMEZONE` | `Europe/Istanbul` | Today/tomorrow TTL calculations |
 | `MEMORY_OUTBOX_MAX_ATTEMPTS` | `5` | Extraction job attempt limit |
 | `MEMORY_WINDOW_MAX_MESSAGES` | `10` | Sliding-window message limit |
@@ -661,7 +723,7 @@ See `.env.example`. Important variables:
 | `MEMORY_TEMPORARY_TTL_MINUTES` | `60` | Default session-state TTL |
 | `MEMORY_PROFILE_MAX_FACTS` | `20` | Profile facts returned per context |
 | `MEMORY_PROFILE_MAX_TOKENS` | `1500` | Profile context token budget |
-| `MEMORY_PROFILE_PINNED_CATEGORIES` | communication/accessibility/emergency | Always-considered categories |
+| `MEMORY_PROFILE_PINNED_CATEGORIES` | communication/accessibility | Always-considered categories; protected health and emergency facts require a matching query domain |
 | `MEMORY_EPISODE_MAX_ITEMS` | `10` | Episode item limit |
 | `MEMORY_EPISODE_MAX_TOKENS` | `1000` | Episode token budget |
 | `MEMORY_PROFILE_SEMANTIC_PROVIDER` | `none` in code | Set to `ollama` for pgvector retrieval |

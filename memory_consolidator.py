@@ -79,6 +79,7 @@ TOKEN_ALIASES = {
 }
 
 KEY_STOP_WORDS = {"of", "the", "user", "users", "up"}
+GENERIC_SLOT_TOKENS = {"preference", "routine", "style", "time", "value"}
 CORRECTION_PATTERN = re.compile(
     r"\b(artik|bundan sonra|eskiden|degil|yerine|guncelle|duzelt)\b"
 )
@@ -135,6 +136,16 @@ def slot_similarity(
     right_tokens = key_tokens(right_category, right_key)
     union = left_tokens | right_tokens
     token_score = len(left_tokens & right_tokens) / len(union) if union else 0.0
+    left_specific = left_tokens - GENERIC_SLOT_TOKENS
+    right_specific = right_tokens - GENERIC_SLOT_TOKENS
+    if (
+        left_specific
+        and right_specific
+        and left_specific.isdisjoint(right_specific)
+    ):
+        # A shared suffix such as ``preference`` is not enough to merge
+        # unrelated concepts such as pasta and coffee.
+        return token_score
     sequence_score = SequenceMatcher(None, left, right).ratio()
     return max(token_score, sequence_score)
 

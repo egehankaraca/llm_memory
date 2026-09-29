@@ -21,6 +21,7 @@ TURKISH_STOP_WORDS = {
     "de",
     "icin",
     "ile",
+    "her",
     "mi",
     "mı",
     "mu",
@@ -29,6 +30,17 @@ TURKISH_STOP_WORDS = {
     "ne",
     "su",
     "ve",
+    # Generic time words are too weak to connect unrelated profile domains.
+    # Domain aliases/semantic similarity still recover genuinely relevant
+    # routines such as wake times and medication questions.
+    "aksam",
+    "aksamlari",
+    "bugun",
+    "sabah",
+    "sabahlari",
+    "saat",
+    "simdi",
+    "yarin",
 }
 
 # Retrieval aliases are intentionally separate from the extraction policy. They
@@ -79,6 +91,24 @@ CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
         "acil kisi",
         "acil durumda",
         "kimi ara",
+        "acil",
+        "yardim",
+        "dustum",
+        "kaydim",
+        "kafami vurdum",
+        "basimi vurdum",
+        "kafami carptim",
+        "basimi carptim",
+        "kan",
+        "kanama",
+        "yaralandim",
+        "nefes alamiyorum",
+        "gogsum agriyor",
+        "bilincimi kaybettim",
+        "felc",
+        "nobet",
+        "ambulans",
+        "112",
     ),
     "family": (
         "family",
@@ -104,7 +134,9 @@ CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
         "ogle yemegi",
         "aksam yemegi",
     ),
-    "drink": ("drink", "beverage", "icecek", "icerim", "iciyorum"),
+    "drink": (
+        "drink", "beverage", "icecek", "icerim", "icerdim", "iciyorum",
+    ),
     "preference": ("preference", "tercih", "severim", "sevmem", "hoslan"),
     "accessibility": (
         "accessibility",
@@ -113,6 +145,12 @@ CONCEPT_ALIASES: dict[str, tuple[str, ...]] = {
         "kisa cumle",
         "sesli",
     ),
+}
+
+
+PROTECTED_QUERY_CONCEPTS = {
+    "emergency_contact": frozenset({"emergency_contact"}),
+    "health": frozenset({"health", "medication"}),
 }
 
 
@@ -232,6 +270,23 @@ def _concepts_for_text(value: str) -> set[str]:
     return concepts
 
 
+def _required_query_concepts(memory: ProfileMemory) -> frozenset[str]:
+    """Require an explicit domain signal before returning protected facts.
+
+    Values are deliberately excluded from this check: a person's name or a
+    generic time word inside a sensitive value must not make that value broadly
+    retrievable. Category/key are the structured policy boundary.
+    """
+    identity_concepts = _concepts_for_text(
+        f"{memory.category} {memory.key.replace('_', ' ')}"
+    )
+    if "emergency_contact" in identity_concepts:
+        return PROTECTED_QUERY_CONCEPTS["emergency_contact"]
+    if identity_concepts & {"health", "medication"}:
+        return PROTECTED_QUERY_CONCEPTS["health"]
+    return frozenset()
+
+
 def _aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=timezone.utc)
@@ -309,6 +364,7 @@ def select_profile_memories(
     pinned_categories: set[str],
     semantic_scores: Mapping[str, float] | None = None,
     semantic_min_similarity: float = 0.40,
+    enforce_protected_query_gate: bool = True,
     now: datetime | None = None,
 ) -> ProfileRetrievalResult:
     selection_time = now or datetime.now(timezone.utc)
@@ -327,6 +383,14 @@ def select_profile_memories(
         tuple[ProfileMemory, float, tuple[str, ...], bool, bool, bool, int]
     ] = []
     for memory in memories:
+        required_concepts = _required_query_concepts(memory)
+        if (
+            enforce_protected_query_gate
+            and query_tokens
+            and required_concepts
+            and not query_concepts.intersection(required_concepts)
+        ):
+            continue
         score, reasons, query_match, alias_match = _score_memory(
             memory,
             query_tokens,

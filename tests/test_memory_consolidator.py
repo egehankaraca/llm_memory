@@ -207,6 +207,26 @@ class MemoryConsolidatorTest(unittest.TestCase):
         self.assertEqual(plan.action, ConsolidationAction.CREATE)
         self.assertIsNone(plan.matched_fact_id)
 
+    def test_different_preference_subjects_do_not_share_a_slot(self) -> None:
+        coffee = ActiveMemory(
+            id="coffee-fact-001",
+            category="dietary_preference",
+            key="coffee_preference",
+            value="Her sabah sütlü Türk kahvesi içerim.",
+        )
+
+        plan = resolve_consolidation(
+            category="dietary_preference",
+            key="pasta_preference",
+            value="Makarna yemeyi çok severim",
+            source_text="Makarna yemeyi çok severim",
+            active_memories=[coffee],
+        )
+
+        self.assertEqual(plan.action, ConsolidationAction.CREATE)
+        self.assertEqual(plan.key, "pasta_preference")
+        self.assertIsNone(plan.matched_fact_id)
+
 
 if __name__ == "__main__":
     unittest.main()
